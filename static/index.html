@@ -200,6 +200,73 @@
       color: var(--secondary-color);
     }
 
+    /* ── Auth overlay ── */
+    #auth-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.88);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    #auth-overlay.hidden { display: none; }
+    #auth-box {
+      width: 540px;
+      max-width: 95vw;
+      border: 1px solid var(--primary-color);
+      padding: 24px;
+      background: var(--background-color);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    #auth-box h2 {
+      font-size: 0.85rem;
+      letter-spacing: 2px;
+      color: var(--primary-color);
+      text-transform: uppercase;
+    }
+    #auth-challenge-display {
+      font-size: 0.73rem;
+      color: var(--font-color);
+      background: var(--secondary-color);
+      padding: 8px;
+      word-break: break-all;
+      user-select: all;
+      cursor: text;
+    }
+    #auth-instruction {
+      font-size: 0.75rem;
+      color: var(--secondary-color);
+      line-height: 1.7;
+    }
+    #auth-instruction code {
+      display: block;
+      margin-top: 4px;
+      color: var(--primary-color);
+      word-break: break-all;
+      user-select: all;
+    }
+    #auth-sig-input {
+      width: 100%;
+      height: 140px;
+      resize: vertical;
+      font-family: var(--mono-font-stack);
+      font-size: 0.72rem;
+      padding: 6px;
+      background: var(--background-color);
+      color: var(--font-color);
+      border: 1px solid var(--secondary-color);
+    }
+    #auth-sig-input:focus { outline: none; border-color: var(--primary-color); }
+    #auth-submit { align-self: flex-start; }
+    #auth-error {
+      font-size: 0.75rem;
+      color: var(--error-color);
+      min-height: 1em;
+    }
+
     /* Scrollbar */
     #log-area::-webkit-scrollbar { width: 8px; }
     #log-area::-webkit-scrollbar-track { background: var(--background-color); }
@@ -266,7 +333,45 @@
     <span id="footer-mode">modo: —</span>
   </div>
 
+  <!-- Auth overlay -->
+  <div id="auth-overlay" class="hidden">
+    <div id="auth-box">
+      <h2>Authentication Required</h2>
+      <div>
+        <div style="font-size:0.7rem;color:var(--secondary-color);margin-bottom:4px;">Challenge (click to select):</div>
+        <div id="auth-challenge-display">Loading...</div>
+      </div>
+      <div id="auth-instruction">
+        Sign the challenge with your GPG key and paste the output below:
+        <code id="auth-cmd"></code>
+      </div>
+      <textarea id="auth-sig-input" placeholder="-----BEGIN PGP SIGNED MESSAGE-----&#10;Hash: SHA256&#10;&#10;logger-auth:...&#10;-----BEGIN PGP SIGNATURE-----&#10;..."></textarea>
+      <div id="auth-error"></div>
+      <button id="auth-submit">Verify Signature</button>
+    </div>
+  </div>
+
   <script>
+    // ── Auth state ───────────────────────────────────────────────────────────
+
+    let authToken = localStorage.getItem('logger_token') || '';
+
+    const _fetch = window.fetch.bind(window);
+    window.fetch = function(url, opts = {}) {
+      if (authToken) {
+        opts.headers = Object.assign({ 'Authorization': 'Bearer ' + authToken }, opts.headers || {});
+      }
+      return _fetch(url, opts);
+    };
+
+    function makeEventSource(url) {
+      if (!authToken) return new EventSource(url);
+      const sep = url.includes('?') ? '&' : '?';
+      return new EventSource(url + sep + 'token=' + encodeURIComponent(authToken));
+    }
+
+    // ── DOM refs ─────────────────────────────────────────────────────────────
+
     const logArea       = document.getElementById('log-area');
     const containerList = document.getElementById('container-list');
     const searchInput   = document.getElementById('search-input');
@@ -370,7 +475,7 @@
       statusDot.className = 'live';
       footerMode.textContent = 'modo: live';
 
-      eventSource = new EventSource(`/api/logs/stream?name=${encodeURIComponent(name)}`);
+      eventSource = makeEventSource(`/api/logs/stream?name=${encodeURIComponent(name)}`);
       eventSource.onmessage = (e) => {
         try {
           const data = JSON.parse(e.data);
@@ -497,6 +602,78 @@
       }
     }
 
+    // ── Auth UI ──────────────────────────────────────────────────────────────
+
+    const authOverlay   = document.getElementById('auth-overlay');
+    const challengeDisp = document.getElementById('auth-challenge-display');
+    const authCmd       = document.getElementById('auth-cmd');
+    const sigInput      = document.getElementById('auth-sig-input');
+    const authSubmit    = document.getElementById('auth-submit');
+    const authError     = document.getElementById('auth-error');
+
+    async function fetchChallenge() {
+      authError.textContent = '';
+      try {
+        const res  = await _fetch('/auth/challenge', { method: 'POST' });
+        const data = await res.json();
+        const ch   = data.challenge;
+        challengeDisp.textContent = ch;
+        authCmd.textContent = `echo "${ch}" | gpg --clearsign`;
+      } catch (e) {
+        challengeDisp.textContent = 'Error fetching challenge — is the server running?';
+      }
+    }
+
+    async function submitSignature() {
+      const sig = sigInput.value.trim();
+      if (!sig) { authError.textContent = 'Paste your signed output first.'; return; }
+      authError.textContent = '';
+      authSubmit.disabled = true;
+      try {
+        const res  = await _fetch('/auth/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ signature: sig }),
+        });
+        const data = await res.json();
+        if (res.ok && data.token) {
+          authToken = data.token;
+          localStorage.setItem('logger_token', authToken);
+          authOverlay.classList.add('hidden');
+          loadContainers();
+          setInterval(loadContainers, 10_000);
+        } else {
+          authError.textContent = data.error || 'Verification failed.';
+          await fetchChallenge();
+          sigInput.value = '';
+        }
+      } catch (e) {
+        authError.textContent = 'Network error: ' + e.message;
+      } finally {
+        authSubmit.disabled = false;
+      }
+    }
+
+    authSubmit.addEventListener('click', submitSignature);
+    sigInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) submitSignature();
+    });
+
+    async function initAuth() {
+      if (authToken) {
+        const res = await _fetch('/api/containers');
+        if (res.status !== 401) {
+          authOverlay.classList.add('hidden');
+          return true;
+        }
+        authToken = '';
+        localStorage.removeItem('logger_token');
+      }
+      authOverlay.classList.remove('hidden');
+      await fetchChallenge();
+      return false;
+    }
+
     // ── Events ───────────────────────────────────────────────────────────────
 
     btnLive.addEventListener('click', () => {
@@ -520,9 +697,13 @@
       chkAutoScroll.checked = nearBottom;
     });
 
-    // Refresh container list every 10 seconds
-    loadContainers();
-    setInterval(loadContainers, 10_000);
+    // Refresh container list every 10 seconds (started after auth)
+    initAuth().then((authed) => {
+      if (authed) {
+        loadContainers();
+        setInterval(loadContainers, 10_000);
+      }
+    });
   </script>
 </body>
 </html>
