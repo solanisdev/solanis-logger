@@ -1,0 +1,12 @@
+services:
+  logger:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./logs:/app/logs
+    environment:
+      - LOGS_DIR=/app/logs
+      - PORT=8080
+    restart: unless-stopped

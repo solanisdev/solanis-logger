@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Logger</title>
+  <link rel="stylesheet" href="https://unpkg.com/terminal.css@0.7.2/dist/terminal.min.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      font-family: var(--mono-font-stack);
+    }
+
+    /* ── Header ── */
+    #header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--secondary-color);
+      flex-shrink: 0;
+    }
+    #header h1 {
+      font-size: 1rem;
+      font-weight: bold;
+      letter-spacing: 2px;
+      color: var(--primary-color);
+    }
+    #status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--secondary-color);
+      display: inline-block;
+      flex-shrink: 0;
+    }
+    #status-dot.live { background: var(--primary-color); box-shadow: 0 0 6px var(--primary-color); }
+    #header-info {
+      font-size: 0.75rem;
+      color: var(--secondary-color);
+    }
+
+    /* ── Main layout ── */
+    #main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Container sidebar ── */
+    #sidebar {
+      width: 200px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--secondary-color);
+      overflow: hidden;
+    }
+    #sidebar-title {
+      padding: 4px 8px;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--secondary-color);
+      border-bottom: 1px solid var(--secondary-color);
+      flex-shrink: 0;
+    }
+    #container-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .ctr-btn {
+      width: 100%;
+      text-align: left;
+      padding: 4px 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--font-color);
+      font-family: var(--mono-font-stack);
+    }
+    .ctr-btn:hover {
+      border-color: var(--primary-color);
+    }
+    .ctr-btn.active {
+      border-color: var(--primary-color);
+      color: var(--primary-color);
+    }
+    .ctr-status {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: var(--secondary-color);
+    }
+    .ctr-status.running { background: var(--primary-color); }
+    .ctr-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ── Log area ── */
+    #log-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Toolbar ── */
+    #toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-bottom: 1px solid var(--secondary-color);
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+    #toolbar input[type="text"] {
+      flex: 1;
+      min-width: 120px;
+      padding: 3px 6px;
+      font-size: 0.8rem;
+    }
+    #toolbar select {
+      padding: 3px 6px;
+      font-size: 0.8rem;
+    }
+    #toolbar button {
+      padding: 3px 10px;
+      font-size: 0.8rem;
+    }
+    #toolbar-label {
+      font-size: 0.7rem;
+      color: var(--secondary-color);
+      white-space: nowrap;
+    }
+    #toolbar label[for="chk-autoscroll"] {
+      font-size: 0.8rem;
+    }
+    #toolbar .chk-wrap {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* ── Log output ── */
+    #log-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+      font-family: var(--mono-font-stack);
+      font-size: 0.78rem;
+      line-height: 1.5;
+      background: var(--background-color);
+      color: var(--font-color);
+    }
+    #log-placeholder {
+      color: var(--secondary-color);
+      font-style: italic;
+    }
+
+    .log-line { display: flex; gap: 6px; flex-wrap: wrap; word-break: break-all; }
+    .log-line + .log-line { margin-top: 1px; }
+
+    .ts   { color: var(--link-color); flex-shrink: 0; }
+    .cn   { color: var(--secondary-color); flex-shrink: 0; }
+    .msg  { flex: 1; }
+
+    /* Level highlights */
+    .lvl-error { color: var(--error-color); font-weight: bold; }
+    .lvl-warn  { color: #ffb86c; }
+    .lvl-info  { color: var(--primary-color); }
+    .lvl-debug { color: var(--tertiary-color); }
+
+    /* ── Footer ── */
+    #footer {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 8px;
+      border-top: 1px solid var(--secondary-color);
+      flex-shrink: 0;
+      font-size: 0.7rem;
+      color: var(--secondary-color);
+    }
+
+    /* Scrollbar */
+    #log-area::-webkit-scrollbar { width: 8px; }
+    #log-area::-webkit-scrollbar-track { background: var(--background-color); }
+    #log-area::-webkit-scrollbar-thumb { background: var(--secondary-color); }
+    #container-list::-webkit-scrollbar { width: 6px; }
+    #container-list::-webkit-scrollbar-thumb { background: var(--secondary-color); }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div id="header">
+    <span id="status-dot"></span>
+    <h1>LOGGER</h1>
+    <span id="header-info">nenhum container selecionado</span>
+  </div>
+
+  <!-- Main -->
+  <div id="main">
+
+    <!-- Sidebar: container list -->
+    <div id="sidebar">
+      <div id="sidebar-title">Containers</div>
+      <div id="container-list">
+        <span style="color:var(--secondary-color);font-size:0.75rem;padding:6px;">Carregando...</span>
+      </div>
+    </div>
+
+    <!-- Log panel -->
+    <div id="log-panel">
+
+      <!-- Toolbar -->
+      <div id="toolbar">
+        <span id="toolbar-label">Busca:</span>
+        <input id="search-input" type="text" placeholder="filtrar logs..." />
+
+        <label for="date-select" style="font-size:0.7rem;color:var(--secondary-color);">Data:</label>
+        <select id="date-select">
+          <option value="">-- selecione --</option>
+        </select>
+
+        <button id="btn-search">Buscar</button>
+
+        <button id="btn-live">&#9654; Live</button>
+
+        <div class="chk-wrap">
+          <input id="chk-autoscroll" type="checkbox" checked />
+          <label for="chk-autoscroll">Auto-scroll</label>
+        </div>
+      </div>
+
+      <!-- Log output -->
+      <div id="log-area">
+        <span id="log-placeholder">Selecione um container no painel esquerdo.</span>
+      </div>
+
+    </div><!-- /log-panel -->
+  </div><!-- /main -->
+
+  <!-- Footer -->
+  <div id="footer">
+    <span id="footer-count">0 linhas</span>
+    <span>|</span>
+    <span id="footer-mode">modo: —</span>
+  </div>
+
+  <script>
+    const logArea       = document.getElementById('log-area');
+    const containerList = document.getElementById('container-list');
+    const searchInput   = document.getElementById('search-input');
+    const dateSelect    = document.getElementById('date-select');
+    const btnSearch     = document.getElementById('btn-search');
+    const btnLive       = document.getElementById('btn-live');
+    const chkAutoScroll = document.getElementById('chk-autoscroll');
+    const statusDot     = document.getElementById('status-dot');
+    const headerInfo    = document.getElementById('header-info');
+    const footerCount   = document.getElementById('footer-count');
+    const footerMode    = document.getElementById('footer-mode');
+    const placeholder   = document.getElementById('log-placeholder');
+
+    let currentContainer = null;
+    let eventSource      = null;
+    let isLive           = false;
+    let lineCount        = 0;
+    const MAX_LINES      = 5000;
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    function escapeHtml(text) {
+      return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function highlight(text) {
+      text = text.replace(/\b(ERROR|FATAL|CRITICAL|EXCEPTION)\b/gi,
+        '<span class="lvl-error">$1</span>');
+      text = text.replace(/\b(WARN(?:ING)?)\b/gi,
+        '<span class="lvl-warn">$1</span>');
+      text = text.replace(/\b(INFO)\b/gi,
+        '<span class="lvl-info">$1</span>');
+      text = text.replace(/\b(DEBUG|TRACE)\b/gi,
+        '<span class="lvl-debug">$1</span>');
+      return text;
+    }
+
+    function formatTime(isoString) {
+      try {
+        const d = new Date(isoString);
+        return d.toLocaleTimeString('pt-BR', { hour12: false });
+      } catch {
+        return isoString;
+      }
+    }
+
+    function buildLineHTML(timestamp, container, message) {
+      const time = formatTime(timestamp);
+      const msg  = highlight(escapeHtml(message));
+      return `<div class="log-line">` +
+        `<span class="ts">${escapeHtml(time)}</span>` +
+        `<span class="cn">[${escapeHtml(container)}]</span>` +
+        `<span class="msg">${msg}</span>` +
+        `</div>`;
+    }
+
+    function buildLineFromRaw(rawLine) {
+      // Format: "2026-04-18T14:32:01Z [container] message..."
+      const match = rawLine.match(/^(\S+)\s+\[([^\]]+)\]\s+([\s\S]*)$/);
+      if (match) {
+        return buildLineHTML(match[1], match[2], match[3]);
+      }
+      return `<div class="log-line"><span class="msg">${highlight(escapeHtml(rawLine))}</span></div>`;
+    }
+
+    function appendLine(html) {
+      if (placeholder) placeholder.remove();
+
+      // trim oldest lines if over limit
+      const lines = logArea.querySelectorAll('.log-line');
+      if (lines.length >= MAX_LINES) {
+        const toRemove = lines.length - MAX_LINES + 1;
+        for (let i = 0; i < toRemove; i++) lines[i].remove();
+      }
+
+      logArea.insertAdjacentHTML('beforeend', html);
+      lineCount++;
+      footerCount.textContent = `${logArea.querySelectorAll('.log-line').length} linhas`;
+
+      if (chkAutoScroll.checked) {
+        logArea.scrollTop = logArea.scrollHeight;
+      }
+    }
+
+    function clearLog() {
+      logArea.innerHTML = '';
+      lineCount = 0;
+      footerCount.textContent = '0 linhas';
+    }
+
+    // ── SSE / Live mode ──────────────────────────────────────────────────────
+
+    function startLive(name) {
+      stopLive();
+      isLive = true;
+      btnLive.textContent = '⏹ Stop';
+      statusDot.className = 'live';
+      footerMode.textContent = 'modo: live';
+
+      eventSource = new EventSource(`/api/logs/stream?name=${encodeURIComponent(name)}`);
+      eventSource.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          appendLine(buildLineHTML(data.timestamp, data.container, data.message));
+        } catch {}
+      };
+      eventSource.onerror = () => {
+        statusDot.className = '';
+        footerMode.textContent = 'modo: live (reconectando...)';
+      };
+    }
+
+    function stopLive() {
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+      }
+      isLive = false;
+      btnLive.textContent = '▶ Live';
+      statusDot.className = '';
+      footerMode.textContent = 'modo: parado';
+    }
+
+    // ── History search ───────────────────────────────────────────────────────
+
+    async function searchHistory() {
+      if (!currentContainer) return;
+      const date  = dateSelect.value;
+      const query = searchInput.value.trim();
+      if (!date) {
+        alert('Selecione uma data para buscar.');
+        return;
+      }
+
+      stopLive();
+      clearLog();
+      footerMode.textContent = 'modo: histórico';
+
+      const params = new URLSearchParams({ name: currentContainer, date });
+      if (query) params.set('q', query);
+
+      try {
+        const res = await fetch(`/api/logs/history?${params}`);
+        const lines = await res.json();
+        if (!lines.length) {
+          logArea.innerHTML = '<span style="color:var(--secondary-color);font-style:italic">Nenhum log encontrado.</span>';
+          return;
+        }
+        const frag = document.createDocumentFragment();
+        const tmp  = document.createElement('div');
+        for (const line of lines) {
+          tmp.innerHTML = buildLineFromRaw(line);
+          frag.appendChild(tmp.firstChild);
+        }
+        logArea.appendChild(frag);
+        footerCount.textContent = `${lines.length} linhas`;
+        if (chkAutoScroll.checked) logArea.scrollTop = logArea.scrollHeight;
+      } catch (err) {
+        logArea.innerHTML = `<span style="color:var(--error-color)">Erro: ${err.message}</span>`;
+      }
+    }
+
+    // ── Container selection ──────────────────────────────────────────────────
+
+    async function selectContainer(name) {
+      // Update active button
+      document.querySelectorAll('.ctr-btn').forEach(b => b.classList.remove('active'));
+      document.querySelector(`.ctr-btn[data-name="${CSS.escape(name)}"]`)?.classList.add('active');
+
+      currentContainer = name;
+      headerInfo.textContent = name;
+      clearLog();
+      stopLive();
+
+      // Load available dates
+      try {
+        const res   = await fetch(`/api/logs/dates?name=${encodeURIComponent(name)}`);
+        const dates = await res.json();
+        dateSelect.innerHTML = '<option value="">-- selecione --</option>';
+        for (const d of dates.reverse()) {
+          const opt = document.createElement('option');
+          opt.value = d;
+          opt.textContent = d;
+          dateSelect.appendChild(opt);
+        }
+        // Pre-select today
+        const today = new Date().toISOString().slice(0, 10);
+        if (dates.includes(today)) dateSelect.value = today;
+      } catch {}
+
+      // Start live automatically
+      startLive(name);
+    }
+
+    // ── Render container list ────────────────────────────────────────────────
+
+    function renderContainers(containers) {
+      containerList.innerHTML = '';
+      if (!containers.length) {
+        containerList.innerHTML = '<span style="color:var(--secondary-color);font-size:0.75rem;padding:6px">Nenhum container.</span>';
+        return;
+      }
+      for (const c of containers) {
+        const btn = document.createElement('button');
+        btn.className = 'ctr-btn';
+        btn.dataset.name = c.name;
+        btn.innerHTML =
+          `<span class="ctr-status ${c.status === 'running' ? 'running' : ''}"></span>` +
+          `<span class="ctr-name" title="${escapeHtml(c.name)}">${escapeHtml(c.name)}</span>`;
+        btn.addEventListener('click', () => selectContainer(c.name));
+        containerList.appendChild(btn);
+      }
+    }
+
+    // ── Fetch containers ─────────────────────────────────────────────────────
+
+    async function loadContainers() {
+      try {
+        const res  = await fetch('/api/containers');
+        const data = await res.json();
+        renderContainers(data);
+      } catch (err) {
+        containerList.innerHTML = `<span style="color:var(--error-color);font-size:0.75rem;padding:6px">Erro: ${err.message}</span>`;
+      }
+    }
+
+    // ── Events ───────────────────────────────────────────────────────────────
+
+    btnLive.addEventListener('click', () => {
+      if (!currentContainer) return;
+      if (isLive) {
+        stopLive();
+      } else {
+        clearLog();
+        startLive(currentContainer);
+      }
+    });
+
+    btnSearch.addEventListener('click', searchHistory);
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') searchHistory();
+    });
+
+    // Disable auto-scroll when user scrolls up
+    logArea.addEventListener('scroll', () => {
+      const nearBottom = logArea.scrollHeight - logArea.scrollTop - logArea.clientHeight < 60;
+      chkAutoScroll.checked = nearBottom;
+    });
+
+    // Refresh container list every 10 seconds
+    loadContainers();
+    setInterval(loadContainers, 10_000);
+  </script>
+</body>
+</html>
