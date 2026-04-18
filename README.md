@@ -1,4 +1,4 @@
-# logger-container
+# solanis-logger
 
 Interface web para visualizar logs de containers Docker em tempo real. Suporta streaming ao vivo via SSE, busca em histórico por data e filtragem por texto.
 
@@ -10,27 +10,17 @@ Interface web para visualizar logs de containers Docker em tempo real. Suporta s
 - **Syntax highlighting** — destaque por nível: ERROR, WARN, INFO, DEBUG
 - **Persistência** — logs salvos em arquivos JSON por data/container
 
-## Uso rápido
+## Usando em outros projetos
 
-### Docker Hub
-
-```bash
-docker run -d \
-  --name logger \
-  -p 8080:8080 \
-  -v /var/run/docker.sock:/var/run/docker.sock:ro \
-  -v ./logs:/app/logs \
-  SEU_USUARIO/logger-container:latest
-```
-
-Acesse em `http://localhost:8080`.
-
-### docker-compose.yml
+Adicione o serviço ao `docker-compose.yml` do seu projeto:
 
 ```yaml
 services:
+  # ... seus outros serviços ...
+
   logger:
-    image: SEU_USUARIO/logger-container:latest
+    build:
+      context: https://github.com/solanisdev/solanis-logger.git
     ports:
       - "8080:8080"
     volumes:
@@ -42,106 +32,35 @@ services:
     restart: unless-stopped
 ```
 
-### Direto do GitHub (sem Docker Hub)
+Suba com:
 
-```yaml
-services:
-  logger:
-    build:
-      context: https://github.com/SEU_USUARIO/logger-container.git
-    ports:
-      - "8080:8080"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./logs:/app/logs
-    restart: unless-stopped
+```bash
+docker compose up -d
 ```
 
-O Docker builda a imagem direto do repositório público — não é necessário clonar.
+Acesse em `http://localhost:8080`. O logger vai listar automaticamente todos os containers do compose.
 
-Para fixar uma versão específica, use uma tag ou commit:
-
-```yaml
-build:
-  context: https://github.com/SEU_USUARIO/logger-container.git#v1.0.0
-```
+> O Docker baixa e builda a imagem direto do GitHub — não é necessário clonar o repositório.
 
 ## Variáveis de ambiente
 
-| Variável   | Padrão      | Descrição                        |
-|------------|-------------|----------------------------------|
-| `PORT`     | `8080`      | Porta HTTP do servidor           |
-| `LOGS_DIR` | `./logs`    | Diretório para salvar logs       |
+| Variável   | Padrão   | Descrição                   |
+|------------|----------|-----------------------------|
+| `PORT`     | `8080`   | Porta HTTP do servidor      |
+| `LOGS_DIR` | `./logs` | Diretório para salvar logs  |
 
-## Publicando no Docker Hub
+## Volumes
 
-### 1. Build e push manual
+| Path no container | Descrição                              |
+|-------------------|----------------------------------------|
+| `/app/logs`       | Logs persistidos em JSON por data      |
 
-```bash
-docker build -t SEU_USUARIO/logger-container:latest .
-docker push SEU_USUARIO/logger-container:latest
-```
-
-Para versionar:
-
-```bash
-docker build -t SEU_USUARIO/logger-container:v1.0.0 .
-docker push SEU_USUARIO/logger-container:v1.0.0
-docker tag SEU_USUARIO/logger-container:v1.0.0 SEU_USUARIO/logger-container:latest
-docker push SEU_USUARIO/logger-container:latest
-```
-
-### 2. GitHub Actions (CI automático)
-
-Crie `.github/workflows/docker.yml` no repositório:
-
-```yaml
-name: Docker
-
-on:
-  push:
-    tags: ["v*"]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - uses: docker/metadata-action@v5
-        id: meta
-        with:
-          images: SEU_USUARIO/logger-container
-
-      - uses: docker/build-push-action@v5
-        with:
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-```
-
-Configure os secrets no repositório:
-- `DOCKERHUB_USERNAME` — seu usuário do Docker Hub
-- `DOCKERHUB_TOKEN` — Access Token gerado em hub.docker.com → Account Settings → Security
-
-Ao criar uma tag `git tag v1.0.0 && git push --tags`, o workflow builda e publica automaticamente.
+O socket `/var/run/docker.sock` (somente leitura) é necessário para listar containers e fazer streaming de logs.
 
 ## Desenvolvimento local
 
 ```bash
-git clone https://github.com/SEU_USUARIO/logger-container
-cd logger-container
+git clone https://github.com/solanisdev/solanis-logger
+cd solanis-logger
 docker compose up --build
 ```
-
-## Volumes
-
-| Path no container | Descrição                                      |
-|-------------------|------------------------------------------------|
-| `/app/logs`       | Logs persistidos em JSON (monte um volume aqui)|
-
-O socket `/var/run/docker.sock` é necessário para listar containers e fazer streaming de logs.
