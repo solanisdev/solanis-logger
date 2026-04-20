@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -24,6 +25,13 @@ func main() {
 
 	ctx := context.Background()
 	collector.Start(ctx)
+
+	if pm2Dir := os.Getenv("PM2_LOGS_DIR"); pm2Dir != "" {
+		if _, err := os.Stat(pm2Dir); err == nil {
+			pm2 := NewPM2Collector(collector, pm2Dir)
+			pm2.Start(ctx)
+		}
+	}
 
 	auth := NewAuthManager()
 
@@ -60,20 +68,25 @@ func handleContainers(collector *Collector, persister *Persister) http.HandlerFu
 		type resp struct {
 			Name   string `json:"name"`
 			Status string `json:"status"`
+			Source string `json:"source"`
 		}
 
 		live := collector.GetContainers()
 		liveSet := make(map[string]bool, len(live))
 		result := make([]resp, 0, len(live))
 		for _, c := range live {
-			result = append(result, resp{Name: c.Name, Status: c.Status})
+			result = append(result, resp{Name: c.Name, Status: c.Status, Source: c.Source})
 			liveSet[c.Name] = true
 		}
 
 		known, _ := persister.ListKnownContainers()
 		for _, name := range known {
 			if !liveSet[name] {
-				result = append(result, resp{Name: name, Status: "stopped"})
+				src := ""
+				if strings.HasPrefix(name, "pm2:") {
+					src = "pm2"
+				}
+				result = append(result, resp{Name: name, Status: "stopped", Source: src})
 			}
 		}
 

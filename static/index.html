@@ -81,6 +81,29 @@
       border-bottom: 1px solid var(--secondary-color);
       flex-shrink: 0;
     }
+    #container-search {
+      margin: 4px;
+      padding: 3px 6px;
+      font-size: 0.75rem;
+      font-family: var(--mono-font-stack);
+      background: transparent;
+      border: 1px solid var(--secondary-color);
+      color: var(--font-color);
+      width: calc(100% - 8px);
+      flex-shrink: 0;
+    }
+    #container-search:focus {
+      outline: none;
+      border-color: var(--primary-color);
+    }
+    .ctr-badge {
+      font-size: 0.6rem;
+      padding: 1px 4px;
+      border: 1px solid currentColor;
+      opacity: 0.6;
+      flex-shrink: 0;
+      letter-spacing: 0.5px;
+    }
     #container-list {
       flex: 1;
       overflow-y: auto;
@@ -438,6 +461,7 @@
     <!-- Sidebar: container list -->
     <div id="sidebar">
       <div id="sidebar-title">Containers</div>
+      <input id="container-search" type="text" placeholder="filter..." />
       <div id="container-list">
         <span style="color:var(--secondary-color);font-size:0.75rem;padding:6px;">Carregando...</span>
       </div>
@@ -556,6 +580,7 @@
     let lineCount        = 0;
     const MAX_LINES      = 5000;
     let rawLines         = [];
+    let lastContainers   = [];
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -765,19 +790,27 @@
     // ── Render container list ────────────────────────────────────────────────
 
     function renderContainers(containers) {
+      lastContainers = containers;
+      const q = document.getElementById('container-search').value.toLowerCase();
+      const filtered = q ? containers.filter(c => c.name.toLowerCase().includes(q)) : containers;
+
       containerList.innerHTML = '';
-      if (!containers.length) {
+      if (!filtered.length) {
         containerList.innerHTML = '<span style="color:var(--secondary-color);font-size:0.75rem;padding:6px">Nenhum container.</span>';
         return;
       }
-      for (const c of containers) {
+      for (const c of filtered) {
         const btn = document.createElement('button');
         btn.className = 'ctr-btn';
         btn.dataset.name = c.name;
+        const isPM2 = c.source === 'pm2' || c.name.startsWith('pm2:');
+        const displayName = isPM2 ? c.name.replace(/^pm2:/, '') : c.name;
         btn.innerHTML =
           `<span class="ctr-status ${c.status === 'running' ? 'running' : ''}"></span>` +
-          `<span class="ctr-name" title="${escapeHtml(c.name)}">${escapeHtml(c.name)}</span>`;
+          (isPM2 ? `<span class="ctr-badge">PM2</span>` : '') +
+          `<span class="ctr-name" title="${escapeHtml(c.name)}">${escapeHtml(displayName)}</span>`;
         btn.addEventListener('click', () => selectContainer(c.name));
+        if (c.name === currentContainer) btn.classList.add('active');
         containerList.appendChild(btn);
       }
     }
@@ -809,6 +842,10 @@
     btnSearch.addEventListener('click', searchHistory);
     searchInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') searchHistory();
+    });
+
+    document.getElementById('container-search').addEventListener('input', () => {
+      renderContainers(lastContainers);
     });
 
     // Disable auto-scroll when user scrolls up
