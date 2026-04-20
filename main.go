@@ -26,8 +26,8 @@ func main() {
 	ctx := context.Background()
 	collector.Start(ctx)
 
-	if pm2Sock := os.Getenv("PM2_SOCK"); pm2Sock != "" {
-		NewPM2Collector(collector, pm2Sock).Start(ctx)
+	if pm2Dir := os.Getenv("PM2_LOGS_DIR"); pm2Dir != "" {
+		NewPM2Collector(collector, pm2Dir).Start(ctx)
 	}
 
 	auth := NewAuthManager()

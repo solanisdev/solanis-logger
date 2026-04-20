@@ -7,9 +7,10 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./logs:/app/logs
       - ./keys:/app/keys:ro
-      - ${HOME}/.pm2/pub.sock:/pm2.sock:ro
+      - /root/.pm2/logs:/pm2-logs:ro
     environment:
       - LOGS_DIR=/app/logs
       - PORT=1123
-      - PM2_SOCK=/pm2.sock
+      - PM2_LOGS_DIR=/pm2-logs
+    user: root
     restart: unless-stopped

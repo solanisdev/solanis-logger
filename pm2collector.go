@@ -3,128 +3,114 @@ package main
 import (
 	"bufio"
 	"context"
-	"encoding/binary"
 	"io"
 	"log"
-	"net"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/vmihailenco/msgpack/v5"
 )
 
 type PM2Collector struct {
 	collector *Collector
-	sockPath  string
+	logsDir   string
+	known     map[string]bool
 }
 
-func NewPM2Collector(c *Collector, sockPath string) *PM2Collector {
-	return &PM2Collector{collector: c, sockPath: sockPath}
+func NewPM2Collector(c *Collector, logsDir string) *PM2Collector {
+	return &PM2Collector{collector: c, logsDir: logsDir, known: make(map[string]bool)}
 }
 
 func (p *PM2Collector) Start(ctx context.Context) {
-	go p.run(ctx)
-}
-
-func (p *PM2Collector) run(ctx context.Context) {
-	for {
-		if err := p.connect(ctx); err != nil && ctx.Err() == nil {
-			log.Printf("pm2: %v — retrying in 5s", err)
+	p.scan(ctx)
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		for {
 			select {
 			case <-ctx.Done():
 				return
-			case <-time.After(5 * time.Second):
+			case <-ticker.C:
+				p.scan(ctx)
 			}
 		}
-		if ctx.Err() != nil {
-			return
-		}
-	}
-}
-
-func (p *PM2Collector) connect(ctx context.Context) error {
-	conn, err := net.Dial("unix", p.sockPath)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	go func() {
-		<-ctx.Done()
-		conn.Close()
 	}()
-
-	r := bufio.NewReader(conn)
-	for {
-		fields, err := readAMPFrame(r)
-		if err != nil {
-			return err
-		}
-		if len(fields) >= 2 {
-			p.handleLog(fields)
-		}
-	}
 }
 
-// readAMPFrame parses one AMP frame: [version:1][argc:1] then per-arg [len:4BE][data]
-func readAMPFrame(r io.Reader) ([][]byte, error) {
-	header := make([]byte, 2)
-	if _, err := io.ReadFull(r, header); err != nil {
-		return nil, err
-	}
-	argc := int(header[1])
-	fields := make([][]byte, argc)
-	for i := 0; i < argc; i++ {
-		var l uint32
-		if err := binary.Read(r, binary.BigEndian, &l); err != nil {
-			return nil, err
-		}
-		fields[i] = make([]byte, l)
-		if _, err := io.ReadFull(r, fields[i]); err != nil {
-			return nil, err
-		}
-	}
-	return fields, nil
-}
-
-type pm2Packet struct {
-	Process struct {
-		Name string `msgpack:"name"`
-	} `msgpack:"process"`
-	Data string `msgpack:"data"`
-}
-
-func (p *PM2Collector) handleLog(fields [][]byte) {
-	var event string
-	if err := msgpack.Unmarshal(fields[0], &event); err != nil {
+func (p *PM2Collector) scan(ctx context.Context) {
+	entries, err := os.ReadDir(p.logsDir)
+	if err != nil {
 		return
 	}
-	if event != "log:out" && event != "log:err" {
-		return
-	}
-
-	var packet pm2Packet
-	if err := msgpack.Unmarshal(fields[1], &packet); err != nil {
-		return
-	}
-	if packet.Process.Name == "" {
-		return
-	}
-
-	name := "pm2:" + packet.Process.Name
-
-	p.collector.mu.Lock()
-	if _, exists := p.collector.containers[name]; !exists {
-		p.collector.containers[name] = ContainerInfo{ID: name, Name: name, Status: "running", Source: "pm2"}
-	}
-	p.collector.mu.Unlock()
-
-	for _, line := range strings.Split(strings.TrimRight(packet.Data, "\r\n"), "\n") {
-		if line == "" {
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".log") {
 			continue
 		}
-		ll := LogLine{Timestamp: time.Now().UTC(), Container: name, Message: line}
-		p.collector.persister.Write(ll)
-		p.collector.broadcast(ll)
+		path := filepath.Join(p.logsDir, e.Name())
+		if p.known[path] {
+			continue
+		}
+		p.known[path] = true
+		name := pm2ProcessName(e.Name())
+
+		p.collector.mu.Lock()
+		if _, exists := p.collector.containers[name]; !exists {
+			p.collector.containers[name] = ContainerInfo{ID: name, Name: name, Status: "running", Source: "pm2"}
+		}
+		p.collector.mu.Unlock()
+
+		go p.tailFile(ctx, path, name)
+	}
+}
+
+func pm2ProcessName(filename string) string {
+	name := strings.TrimSuffix(filename, ".log")
+	name = strings.TrimSuffix(name, "-out")
+	name = strings.TrimSuffix(name, "-error")
+	return "pm2:" + name
+}
+
+func (p *PM2Collector) tailFile(ctx context.Context, path, name string) {
+	f, err := os.Open(path)
+	if err != nil {
+		log.Printf("pm2: cannot open %s: %v", path, err)
+		return
+	}
+	defer f.Close()
+
+	if _, err := f.Seek(0, io.SeekEnd); err != nil {
+		return
+	}
+
+	reader := bufio.NewReader(f)
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+	var partial string
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			for {
+				line, err := reader.ReadString('\n')
+				partial += line
+				if err != nil {
+					break
+				}
+				msg := strings.TrimRight(partial, "\r\n")
+				partial = ""
+				if msg == "" {
+					continue
+				}
+				ll := LogLine{
+					Timestamp: time.Now().UTC(),
+					Container: name,
+					Message:   msg,
+				}
+				p.collector.persister.Write(ll)
+				p.collector.broadcast(ll)
+			}
+		}
 	}
 }
