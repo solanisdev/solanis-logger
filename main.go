@@ -27,10 +27,10 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.Dir("static")))
-	mux.HandleFunc("/api/containers", handleContainers(collector, persister))
-	mux.HandleFunc("/api/logs/stream", handleStream(collector))
-	mux.HandleFunc("/api/logs/history", handleHistory(persister))
-	mux.HandleFunc("/api/logs/dates", handleDates(persister))
+	mux.Handle("/api/containers", handleContainers(collector, persister))
+	mux.Handle("/api/logs/stream", handleStream(collector))
+	mux.Handle("/api/logs/history", handleHistory(persister))
+	mux.Handle("/api/logs/dates", handleDates(persister))
 
 	log.Printf("logger listening on :%s", port)
 	if err := http.ListenAndServe(":"+port, mux); err != nil {

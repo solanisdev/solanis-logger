@@ -30,6 +30,8 @@
       font-weight: bold;
       letter-spacing: 2px;
       color: var(--primary-color);
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     #status-dot {
       width: 10px;
@@ -43,6 +45,15 @@
     #header-info {
       font-size: 0.75rem;
       color: var(--secondary-color);
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #brand-logo {
+      margin-left: auto;
+      height: 24px;
+      flex-shrink: 0;
     }
 
     /* ── Main layout ── */
@@ -125,87 +136,290 @@
     #toolbar {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 6px 8px;
+      gap: 12px;
+      padding: 8px 12px;
       border-bottom: 1px solid var(--secondary-color);
       flex-shrink: 0;
       flex-wrap: wrap;
+      background: rgba(255,255,255,0.03);
+    }
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
     #toolbar input[type="text"] {
-      flex: 1;
-      min-width: 120px;
-      padding: 3px 6px;
+      background: transparent;
+      border: 1px solid var(--secondary-color);
+      color: var(--font-color);
+      padding: 2px 8px;
       font-size: 0.8rem;
+      font-family: var(--mono-font-stack);
+      min-width: 180px;
+    }
+    #toolbar input[type="text"]:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 4px var(--primary-color);
     }
     #toolbar select {
-      padding: 3px 6px;
+      background: var(--background-color);
+      border: 1px solid var(--secondary-color);
+      color: var(--font-color);
+      padding: 1px 4px;
       font-size: 0.8rem;
+      cursor: pointer;
+    }
+    #toolbar select:focus {
+      outline: none;
+      border-color: var(--primary-color);
     }
     #toolbar button {
-      padding: 3px 10px;
+      background: transparent;
+      border: 1px solid var(--secondary-color);
+      color: var(--font-color);
+      padding: 2px 10px;
       font-size: 0.8rem;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: all 0.1s;
+    }
+    #toolbar button:hover {
+      border-color: var(--primary-color);
+      color: var(--primary-color);
+    }
+    #toolbar button:active {
+      background: var(--primary-color);
+      color: var(--background-color);
     }
     #toolbar-label {
       font-size: 0.7rem;
       color: var(--secondary-color);
-      white-space: nowrap;
-    }
-    #toolbar label[for="chk-autoscroll"] {
-      font-size: 0.8rem;
+      text-transform: uppercase;
+      font-weight: bold;
     }
     #toolbar .chk-wrap {
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      user-select: none;
     }
 
     /* ── Log output ── */
     #log-area {
       flex: 1;
       overflow-y: auto;
-      padding: 8px;
+      padding: 12px;
       font-family: var(--mono-font-stack);
-      font-size: 0.78rem;
-      line-height: 1.5;
+      font-size: 0.85rem;
+      line-height: 1.4;
       background: var(--background-color);
       color: var(--font-color);
     }
     #log-placeholder {
       color: var(--secondary-color);
       font-style: italic;
+      opacity: 0.6;
     }
 
-    .log-line { display: flex; gap: 6px; flex-wrap: wrap; word-break: break-all; }
-    .log-line + .log-line { margin-top: 1px; }
+    .log-line { display: flex; gap: 10px; flex-wrap: wrap; word-break: break-all; }
+    .log-line + .log-line { margin-top: 2px; }
 
-    .ts   { color: var(--link-color); flex-shrink: 0; }
-    .cn   { color: var(--secondary-color); flex-shrink: 0; }
+    .ts   { color: var(--tertiary-color); flex-shrink: 0; opacity: 0.8; }
+    .cn   { color: var(--secondary-color); flex-shrink: 0; font-weight: bold; }
     .msg  { flex: 1; }
-
-    /* Level highlights */
-    .lvl-error { color: var(--error-color); font-weight: bold; }
-    .lvl-warn  { color: #ffb86c; }
-    .lvl-info  { color: var(--primary-color); }
-    .lvl-debug { color: var(--tertiary-color); }
 
     /* ── Footer ── */
     #footer {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 4px 8px;
+      gap: 12px;
+      padding: 4px 12px;
       border-top: 1px solid var(--secondary-color);
       flex-shrink: 0;
       font-size: 0.7rem;
       color: var(--secondary-color);
+      background: rgba(255,255,255,0.02);
     }
 
+
     /* Scrollbar */
-    #log-area::-webkit-scrollbar { width: 8px; }
+    #log-area::-webkit-scrollbar { width: 10px; }
     #log-area::-webkit-scrollbar-track { background: var(--background-color); }
-    #log-area::-webkit-scrollbar-thumb { background: var(--secondary-color); }
-    #container-list::-webkit-scrollbar { width: 6px; }
-    #container-list::-webkit-scrollbar-thumb { background: var(--secondary-color); }
+    #log-area::-webkit-scrollbar-thumb { background: #333; border: 2px solid var(--background-color); }
+    #log-area::-webkit-scrollbar-thumb:hover { background: #444; }
+
+    /* ── Highlighting panel ── */
+    #hl-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(2px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+    }
+    #hl-overlay.hidden { display: none; }
+    #hl-box {
+      width: 650px;
+      max-width: 95vw;
+      max-height: 85vh;
+      overflow-y: auto;
+      border: 2px solid var(--primary-color);
+      padding: 30px;
+      background: var(--background-color);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      box-shadow: 0 0 30px rgba(0,0,0,0.5);
+    }
+    #hl-box h2 {
+      font-size: 1rem;
+      letter-spacing: 3px;
+      color: var(--primary-color);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      border-bottom: 1px solid var(--primary-color);
+      padding-bottom: 10px;
+    }
+    .hl-section-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--secondary-color);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .hl-section-title::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--secondary-color);
+      opacity: 0.3;
+    }
+    .hl-default-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.8rem;
+      margin-bottom: 8px;
+      padding: 4px 8px;
+      background: rgba(255,255,255,0.03);
+    }
+    .hl-swatch-preview {
+      width: 12px;
+      height: 12px;
+      flex-shrink: 0;
+    }
+    .hl-rule-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+      padding: 8px;
+      border: 1px solid var(--secondary-color);
+    }
+    .hl-rule-row input[type="text"] {
+      flex: 1;
+      padding: 4px 10px;
+      font-size: 0.85rem;
+      font-family: var(--mono-font-stack);
+      background: rgba(0,0,0,0.2);
+      color: var(--font-color);
+      border: 1px solid var(--secondary-color);
+      min-width: 0;
+    }
+    .hl-rule-row input[type="text"]:focus { outline: none; border-color: var(--primary-color); }
+    .hl-swatches {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+      max-width: 160px;
+    }
+    .hl-swatch {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      padding: 0;
+      flex-shrink: 0;
+    }
+    .hl-swatch:hover { border-color: var(--font-color); transform: scale(1.1); }
+    .hl-swatch.selected { border: 2px solid #fff; outline: 1px solid #000; }
+    .hl-remove {
+      padding: 4px 12px;
+      font-size: 1rem;
+      cursor: pointer;
+      flex-shrink: 0;
+      color: var(--error-color);
+      background: transparent;
+      border: 1px solid var(--error-color);
+      line-height: 1;
+    }
+    .hl-remove:hover { background: var(--error-color); color: var(--background-color); }
+    #btn-add-rule {
+      background: transparent;
+      border: 1px dashed var(--secondary-color);
+      color: var(--secondary-color);
+      padding: 8px;
+      cursor: pointer;
+      font-family: var(--mono-font-stack);
+      text-transform: uppercase;
+      font-size: 0.8rem;
+    }
+    #btn-add-rule:hover {
+      border-style: solid;
+      border-color: var(--primary-color);
+      color: var(--primary-color);
+    }
+    #btn-hl-close {
+      margin-top: 10px;
+      padding: 8px;
+      background: var(--primary-color);
+      color: var(--background-color);
+      border: none;
+      cursor: pointer;
+      font-family: var(--mono-font-stack);
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+    #btn-hl-close:hover {
+      filter: brightness(1.2);
+    }
+
+    #hl-box::-webkit-scrollbar { width: 6px; }
+    #hl-box::-webkit-scrollbar-thumb { background: var(--secondary-color); }
+
+    /* ── Themes ── */
+    :root, [data-theme="dark"] {
+      --background-color: #0d0f12;
+      --font-color: #c9d1d9;
+      --primary-color: #39d353;
+      --secondary-color: #556073;
+      --tertiary-color: #58a6ff;
+      --error-color: #f85149;
+      --link-color: #58a6ff;
+    }
+    [data-theme="light"] {
+      --background-color: #f4f4f0;
+      --font-color: #1a1a1a;
+      --primary-color: #1a7f37;
+      --secondary-color: #6e7781;
+      --tertiary-color: #0550ae;
+      --error-color: #cf222e;
+      --link-color: #0550ae;
+    }
+    body {
+      background: var(--background-color);
+      color: var(--font-color);
+    }
   </style>
 </head>
 <body>
@@ -215,6 +429,7 @@
     <span id="status-dot"></span>
     <h1>LOGGER</h1>
     <span id="header-info">nenhum container selecionado</span>
+    <img id="brand-logo" src="/img/solanis-logo.svg" alt="Solanis" />
   </div>
 
   <!-- Main -->
@@ -233,21 +448,30 @@
 
       <!-- Toolbar -->
       <div id="toolbar">
-        <span id="toolbar-label">Busca:</span>
-        <input id="search-input" type="text" placeholder="filtrar logs..." />
+        <div class="toolbar-group">
+          <span id="toolbar-label">Search</span>
+          <input id="search-input" type="text" placeholder="filter logs..." />
+        </div>
 
-        <label for="date-select" style="font-size:0.7rem;color:var(--secondary-color);">Data:</label>
-        <select id="date-select">
-          <option value="">-- selecione --</option>
-        </select>
+        <div class="toolbar-group">
+          <label for="date-select" id="toolbar-label">History</label>
+          <select id="date-select">
+            <option value="">-- select date --</option>
+          </select>
+          <button id="btn-search">[ Find ]</button>
+        </div>
 
-        <button id="btn-search">Buscar</button>
+        <div class="toolbar-group" style="margin-left: auto;">
+          <button id="btn-live">[ Play Live ]</button>
+          <button id="btn-highlight">[ Config ]</button>
+          <button id="btn-theme">[ Light ]</button>
+        </div>
 
-        <button id="btn-live">&#9654; Live</button>
-
-        <div class="chk-wrap">
-          <input id="chk-autoscroll" type="checkbox" checked />
-          <label for="chk-autoscroll">Auto-scroll</label>
+        <div class="toolbar-group">
+          <div class="chk-wrap">
+            <input id="chk-autoscroll" type="checkbox" checked />
+            <label for="chk-autoscroll">Auto-scroll</label>
+          </div>
         </div>
       </div>
 
@@ -266,7 +490,53 @@
     <span id="footer-mode">modo: —</span>
   </div>
 
+  <!-- Highlighting panel -->
+  <div id="hl-overlay" class="hidden">
+    <div id="hl-box">
+      <h2>Highlighting Rules</h2>
+
+      <section>
+        <div class="hl-section-title">Default Patterns (read-only)</div>
+        <div id="hl-defaults"></div>
+      </section>
+
+      <section>
+        <div class="hl-section-title">Custom Rules</div>
+        <div id="hl-rules-list"></div>
+        <button id="btn-add-rule">+ Add Rule</button>
+      </section>
+
+      <button id="btn-hl-close">Close</button>
+    </div>
+  </div>
+
   <script>
+    // ── Highlighting config ──────────────────────────────────────────────────
+
+    const PALETTE = [
+      { label: 'Red',    value: '#ff5555' },
+      { label: 'Orange', value: '#ffb86c' },
+      { label: 'Yellow', value: '#f1fa8c' },
+      { label: 'Green',  value: '#50fa7b' },
+      { label: 'Cyan',   value: '#8be9fd' },
+      { label: 'Blue',   value: '#6272a4' },
+      { label: 'Purple', value: '#bd93f9' },
+      { label: 'Pink',   value: '#ff79c6' },
+      { label: 'White',  value: '#f8f8f2' },
+    ];
+
+    const DEFAULT_RULES = [
+      { pattern: '\\b(ERROR|FATAL|CRITICAL|EXCEPTION)\\b', color: 'var(--error-color)',    flags: 'gi' },
+      { pattern: '\\b(WARN(?:ING)?)\\b',                   color: '#ffb86c',               flags: 'gi' },
+      { pattern: '\\b(INFO)\\b',                           color: 'var(--primary-color)',   flags: 'gi' },
+      { pattern: '\\b(DEBUG|TRACE)\\b',                    color: 'var(--tertiary-color)',  flags: 'gi' },
+    ];
+
+    let customRules = [];
+    try { customRules = JSON.parse(localStorage.getItem('logger_highlight_rules') || '[]'); } catch {}
+
+    // ── DOM refs ─────────────────────────────────────────────────────────────
+
     const logArea       = document.getElementById('log-area');
     const containerList = document.getElementById('container-list');
     const searchInput   = document.getElementById('search-input');
@@ -285,6 +555,7 @@
     let isLive           = false;
     let lineCount        = 0;
     const MAX_LINES      = 5000;
+    let rawLines         = [];
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -297,14 +568,16 @@
     }
 
     function highlight(text) {
-      text = text.replace(/\b(ERROR|FATAL|CRITICAL|EXCEPTION)\b/gi,
-        '<span class="lvl-error">$1</span>');
-      text = text.replace(/\b(WARN(?:ING)?)\b/gi,
-        '<span class="lvl-warn">$1</span>');
-      text = text.replace(/\b(INFO)\b/gi,
-        '<span class="lvl-info">$1</span>');
-      text = text.replace(/\b(DEBUG|TRACE)\b/gi,
-        '<span class="lvl-debug">$1</span>');
+      const rules = [...DEFAULT_RULES, ...customRules];
+      for (const rule of rules) {
+        if (!rule.pattern) continue;
+        try {
+          text = text.replace(
+            new RegExp(rule.pattern, rule.flags || 'gi'),
+            `<span style="color:${rule.color}">$&</span>`
+          );
+        } catch {}
+      }
       return text;
     }
 
@@ -336,27 +609,44 @@
       return `<div class="log-line"><span class="msg">${highlight(escapeHtml(rawLine))}</span></div>`;
     }
 
-    function appendLine(html) {
+    function appendEntry(ts, container, msg) {
       if (placeholder) placeholder.remove();
 
-      // trim oldest lines if over limit
-      const lines = logArea.querySelectorAll('.log-line');
-      if (lines.length >= MAX_LINES) {
-        const toRemove = lines.length - MAX_LINES + 1;
-        for (let i = 0; i < toRemove; i++) lines[i].remove();
+      rawLines.push({ ts, container, msg });
+
+      if (rawLines.length > MAX_LINES) {
+        const excess = rawLines.length - MAX_LINES;
+        rawLines.splice(0, excess);
+        const domLines = logArea.querySelectorAll('.log-line');
+        for (let i = 0; i < excess && i < domLines.length; i++) domLines[i].remove();
       }
 
-      logArea.insertAdjacentHTML('beforeend', html);
+      logArea.insertAdjacentHTML('beforeend', buildLineHTML(ts, container, msg));
       lineCount++;
-      footerCount.textContent = `${logArea.querySelectorAll('.log-line').length} linhas`;
+      footerCount.textContent = `${rawLines.length} linhas`;
 
       if (chkAutoScroll.checked) {
         logArea.scrollTop = logArea.scrollHeight;
       }
     }
 
+    function rerenderAll() {
+      if (!rawLines.length) return;
+      logArea.innerHTML = '';
+      const frag = document.createDocumentFragment();
+      const tmp  = document.createElement('div');
+      for (const e of rawLines) {
+        tmp.innerHTML = buildLineHTML(e.ts, e.container, e.msg);
+        frag.appendChild(tmp.firstChild);
+      }
+      logArea.appendChild(frag);
+      footerCount.textContent = `${rawLines.length} linhas`;
+      if (chkAutoScroll.checked) logArea.scrollTop = logArea.scrollHeight;
+    }
+
     function clearLog() {
       logArea.innerHTML = '';
+      rawLines  = [];
       lineCount = 0;
       footerCount.textContent = '0 linhas';
     }
@@ -374,7 +664,7 @@
       eventSource.onmessage = (e) => {
         try {
           const data = JSON.parse(e.data);
-          appendLine(buildLineHTML(data.timestamp, data.container, data.message));
+          appendEntry(data.timestamp, data.container, data.message);
         } catch {}
       };
       eventSource.onerror = () => {
@@ -422,7 +712,14 @@
         const frag = document.createDocumentFragment();
         const tmp  = document.createElement('div');
         for (const line of lines) {
-          tmp.innerHTML = buildLineFromRaw(line);
+          const m = line.match(/^(\S+)\s+\[([^\]]+)\]\s+([\s\S]*)$/);
+          if (m) {
+            rawLines.push({ ts: m[1], container: m[2], msg: m[3] });
+            tmp.innerHTML = buildLineHTML(m[1], m[2], m[3]);
+          } else {
+            rawLines.push({ ts: '', container: '', msg: line });
+            tmp.innerHTML = buildLineFromRaw(line);
+          }
           frag.appendChild(tmp.firstChild);
         }
         logArea.appendChild(frag);
@@ -520,7 +817,118 @@
       chkAutoScroll.checked = nearBottom;
     });
 
-    // Refresh container list every 10 seconds
+    // ── Highlighting panel ───────────────────────────────────────────────────
+
+    const hlOverlay   = document.getElementById('hl-overlay');
+    const hlRulesList = document.getElementById('hl-rules-list');
+    const hlDefaults  = document.getElementById('hl-defaults');
+    const btnHighlight = document.getElementById('btn-highlight');
+    const btnAddRule   = document.getElementById('btn-add-rule');
+    const btnHlClose   = document.getElementById('btn-hl-close');
+
+    function saveAndApplyRules() {
+      localStorage.setItem('logger_highlight_rules', JSON.stringify(customRules));
+      rerenderAll();
+    }
+
+    function renderDefaultRules() {
+      hlDefaults.innerHTML = '';
+      const cssVarMap = {
+        'var(--error-color)':    '#ff5555',
+        'var(--primary-color)':  '#00ff00',
+        'var(--tertiary-color)': '#888888',
+      };
+      for (const rule of DEFAULT_RULES) {
+        const row    = document.createElement('div');
+        row.className = 'hl-default-row';
+        const swatch = document.createElement('span');
+        swatch.className = 'hl-swatch-preview';
+        swatch.style.background = cssVarMap[rule.color] || rule.color;
+        const label  = document.createElement('span');
+        label.textContent = rule.pattern;
+        label.style.color = cssVarMap[rule.color] || rule.color;
+        row.appendChild(swatch);
+        row.appendChild(label);
+        hlDefaults.appendChild(row);
+      }
+    }
+
+    function renderCustomRules() {
+      hlRulesList.innerHTML = '';
+      customRules.forEach((rule, i) => {
+        const row = document.createElement('div');
+        row.className = 'hl-rule-row';
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = rule.pattern;
+        input.placeholder = 'regex pattern...';
+        input.addEventListener('input', () => {
+          customRules[i].pattern = input.value;
+          saveAndApplyRules();
+        });
+
+        const swatches = document.createElement('div');
+        swatches.className = 'hl-swatches';
+        for (const color of PALETTE) {
+          const sw = document.createElement('button');
+          sw.className = 'hl-swatch' + (rule.color === color.value ? ' selected' : '');
+          sw.style.background = color.value;
+          sw.title = color.label;
+          sw.addEventListener('click', () => {
+            customRules[i].color = color.value;
+            saveAndApplyRules();
+            renderCustomRules();
+          });
+          swatches.appendChild(sw);
+        }
+
+        const removeBtn = document.createElement('button');
+        removeBtn.textContent = '×';
+        removeBtn.className = 'hl-remove';
+        removeBtn.addEventListener('click', () => {
+          customRules.splice(i, 1);
+          saveAndApplyRules();
+          renderCustomRules();
+        });
+
+        row.appendChild(input);
+        row.appendChild(swatches);
+        row.appendChild(removeBtn);
+        hlRulesList.appendChild(row);
+      });
+    }
+
+    btnHighlight.addEventListener('click', () => {
+      renderDefaultRules();
+      renderCustomRules();
+      hlOverlay.classList.remove('hidden');
+    });
+
+    btnHlClose.addEventListener('click', () => hlOverlay.classList.add('hidden'));
+
+    btnAddRule.addEventListener('click', () => {
+      customRules.push({ pattern: '', color: PALETTE[0].value });
+      renderCustomRules();
+    });
+
+    // ── Theme toggle ────────────────────────────────────────────────────────
+    const btnTheme = document.getElementById('btn-theme');
+    const brandLogo = document.getElementById('brand-logo');
+    const applyTheme = (theme) => {
+      document.documentElement.setAttribute('data-theme', theme);
+      btnTheme.textContent = theme === 'dark' ? '[ Light ]' : '[ Dark ]';
+      brandLogo.src = theme === 'dark'
+        ? '/img/solanis-logo.svg'
+        : '/img/solanis-for-light-logo.svg';
+      localStorage.setItem('logger-theme', theme);
+    };
+    btnTheme.addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme') || 'dark';
+      applyTheme(current === 'dark' ? 'light' : 'dark');
+    });
+    applyTheme(localStorage.getItem('logger-theme') || 'dark');
+
     loadContainers();
     setInterval(loadContainers, 10_000);
   </script>
