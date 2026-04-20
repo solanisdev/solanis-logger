@@ -25,12 +25,29 @@ func main() {
 	ctx := context.Background()
 	collector.Start(ctx)
 
+	auth := NewAuthManager()
+
 	mux := http.NewServeMux()
-	mux.Handle("/", http.FileServer(http.Dir("static")))
-	mux.Handle("/api/containers", handleContainers(collector, persister))
-	mux.Handle("/api/logs/stream", handleStream(collector))
-	mux.Handle("/api/logs/history", handleHistory(persister))
-	mux.Handle("/api/logs/dates", handleDates(persister))
+
+	mux.HandleFunc("GET /login", auth.HandleLoginPage)
+	mux.HandleFunc("POST /login", auth.HandleLoginSubmit)
+	mux.HandleFunc("POST /logout", auth.HandleLogout)
+
+	staticHandler := http.FileServer(http.Dir("static"))
+	mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" || r.URL.Path == "/index.html" {
+			if !auth.IsAuthenticated(r) {
+				http.Redirect(w, r, "/login", http.StatusFound)
+				return
+			}
+		}
+		staticHandler.ServeHTTP(w, r)
+	}))
+
+	mux.Handle("/api/containers", auth.RequireAuth(handleContainers(collector, persister)))
+	mux.Handle("/api/logs/stream", auth.RequireAuth(handleStream(collector)))
+	mux.Handle("/api/logs/history", auth.RequireAuth(handleHistory(persister)))
+	mux.Handle("/api/logs/dates", auth.RequireAuth(handleDates(persister)))
 
 	log.Printf("logger listening on :%s", port)
 	if err := http.ListenAndServe(":"+port, mux); err != nil {
