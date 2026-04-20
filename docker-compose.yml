@@ -2,7 +2,7 @@ services:
   logger:
     build: .
     ports:
-      - "8080:8080"
+      - "1123:1123"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./logs:/app/logs
@@ -10,6 +10,6 @@ services:
       - ${HOME}/.pm2/pub.sock:/pm2.sock:ro
     environment:
       - LOGS_DIR=/app/logs
-      - PORT=8080
+      - PORT=1123
       - PM2_SOCK=/pm2.sock
     restart: unless-stopped
