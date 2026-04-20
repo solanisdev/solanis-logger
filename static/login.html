@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Logger — Login</title>
+  <link rel="stylesheet" href="https://unpkg.com/terminal.css@0.7.2/dist/terminal.min.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --background-color: #0d0f12;
+      --font-color: #c9d1d9;
+      --primary-color: #39d353;
+      --secondary-color: #556073;
+      --error-color: #f85149;
+    }
+
+    body {
+      background: var(--background-color);
+      color: var(--font-color);
+      font-family: var(--mono-font-stack);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--secondary-color);
+    }
+
+    #header h1 {
+      font-size: 1rem;
+      font-weight: bold;
+      letter-spacing: 2px;
+      color: var(--primary-color);
+    }
+
+    #brand-logo {
+      margin-left: auto;
+      height: 24px;
+    }
+
+    #login-box {
+      width: 360px;
+      border: 1px solid var(--secondary-color);
+      padding: 36px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    #login-box h2 {
+      font-size: 0.9rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--primary-color);
+      border-bottom: 1px solid var(--secondary-color);
+      padding-bottom: 12px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+
+    .field:last-of-type { margin-bottom: 24px; }
+
+    .field label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--secondary-color);
+    }
+
+    .field input {
+      background: transparent;
+      border: 1px solid var(--secondary-color);
+      color: var(--font-color);
+      padding: 6px 10px;
+      font-size: 0.85rem;
+      font-family: var(--mono-font-stack);
+      width: 100%;
+    }
+
+    .field input:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 4px var(--primary-color);
+    }
+
+    #btn-login {
+      background: var(--primary-color);
+      color: var(--background-color);
+      border: none;
+      padding: 8px;
+      font-family: var(--mono-font-stack);
+      font-size: 0.85rem;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      cursor: pointer;
+      width: 100%;
+    }
+
+    #btn-login:hover { filter: brightness(1.15); }
+    #btn-login:active { filter: brightness(0.9); }
+
+    #error-msg {
+      font-size: 0.8rem;
+      color: var(--error-color);
+      border: 1px solid var(--error-color);
+      padding: 6px 10px;
+      display: none;
+    }
+
+    #error-msg.visible { display: block; }
+  </style>
+</head>
+<body>
+
+  <div id="header">
+    <h1>LOGGER</h1>
+    <img id="brand-logo" src="/img/solanis-logo.svg" alt="Solanis" />
+  </div>
+
+  <div id="login-box">
+    <h2>Access</h2>
+
+    <div id="error-msg">Credenciais inválidas.</div>
+
+    <form method="POST" action="/login">
+      <div class="field">
+        <label for="username">Usuário</label>
+        <input id="username" name="username" type="text"
+               autocomplete="username" autofocus required />
+      </div>
+      <div class="field">
+        <label for="password">Senha</label>
+        <input id="password" name="password" type="password"
+               autocomplete="current-password" required />
+      </div>
+      <button id="btn-login" type="submit">[ Entrar ]</button>
+    </form>
+  </div>
+
+  <script>
+    if (new URLSearchParams(location.search).get('error') === '1') {
+      document.getElementById('error-msg').classList.add('visible');
+    }
+  </script>
+
+</body>
+</html>
