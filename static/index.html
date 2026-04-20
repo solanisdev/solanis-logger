@@ -96,13 +96,20 @@
       outline: none;
       border-color: var(--primary-color);
     }
-    .ctr-badge {
-      font-size: 0.6rem;
-      padding: 1px 4px;
-      border: 1px solid currentColor;
-      opacity: 0.6;
-      flex-shrink: 0;
-      letter-spacing: 0.5px;
+    .ctr-section {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--secondary-color);
+      padding: 6px 6px 2px;
+      border-top: 1px solid var(--secondary-color);
+      opacity: 0.5;
+      margin-top: 4px;
+      user-select: none;
+    }
+    .ctr-section:first-child {
+      border-top: none;
+      margin-top: 0;
     }
     #container-list {
       flex: 1;
@@ -789,29 +796,48 @@
 
     // ── Render container list ────────────────────────────────────────────────
 
+    function makeContainerBtn(c) {
+      const isPM2 = c.source === 'pm2' || c.name.startsWith('pm2:');
+      const displayName = isPM2 ? c.name.replace(/^pm2:/, '') : c.name;
+      const btn = document.createElement('button');
+      btn.className = 'ctr-btn' + (c.name === currentContainer ? ' active' : '');
+      btn.dataset.name = c.name;
+      btn.innerHTML =
+        `<span class="ctr-status ${c.status === 'running' ? 'running' : ''}"></span>` +
+        `<span class="ctr-name" title="${escapeHtml(c.name)}">${escapeHtml(displayName)}</span>`;
+      btn.addEventListener('click', () => selectContainer(c.name));
+      return btn;
+    }
+
     function renderContainers(containers) {
       lastContainers = containers;
       const q = document.getElementById('container-search').value.toLowerCase();
       const filtered = q ? containers.filter(c => c.name.toLowerCase().includes(q)) : containers;
 
+      const dockerList = filtered.filter(c => c.source !== 'pm2' && !c.name.startsWith('pm2:'));
+      const pm2List    = filtered.filter(c => c.source === 'pm2' || c.name.startsWith('pm2:'));
+
       containerList.innerHTML = '';
-      if (!filtered.length) {
+
+      if (!dockerList.length && !pm2List.length) {
         containerList.innerHTML = '<span style="color:var(--secondary-color);font-size:0.75rem;padding:6px">Nenhum container.</span>';
         return;
       }
-      for (const c of filtered) {
-        const btn = document.createElement('button');
-        btn.className = 'ctr-btn';
-        btn.dataset.name = c.name;
-        const isPM2 = c.source === 'pm2' || c.name.startsWith('pm2:');
-        const displayName = isPM2 ? c.name.replace(/^pm2:/, '') : c.name;
-        btn.innerHTML =
-          `<span class="ctr-status ${c.status === 'running' ? 'running' : ''}"></span>` +
-          (isPM2 ? `<span class="ctr-badge">PM2</span>` : '') +
-          `<span class="ctr-name" title="${escapeHtml(c.name)}">${escapeHtml(displayName)}</span>`;
-        btn.addEventListener('click', () => selectContainer(c.name));
-        if (c.name === currentContainer) btn.classList.add('active');
-        containerList.appendChild(btn);
+
+      if (dockerList.length) {
+        const hdr = document.createElement('div');
+        hdr.className = 'ctr-section';
+        hdr.textContent = 'Docker';
+        containerList.appendChild(hdr);
+        dockerList.forEach(c => containerList.appendChild(makeContainerBtn(c)));
+      }
+
+      if (pm2List.length) {
+        const hdr = document.createElement('div');
+        hdr.className = 'ctr-section';
+        hdr.textContent = 'PM2';
+        containerList.appendChild(hdr);
+        pm2List.forEach(c => containerList.appendChild(makeContainerBtn(c)));
       }
     }
 
