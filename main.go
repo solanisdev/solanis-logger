@@ -25,38 +25,12 @@ func main() {
 	ctx := context.Background()
 	collector.Start(ctx)
 
-	pubKey, err := loadPublicKey()
-	if err != nil {
-		log.Fatalf("failed to load PGP public key: %v", err)
-	}
-	var auth *AuthManager
-	if pubKey != "" {
-		auth, err = NewAuthManager(pubKey)
-		if err != nil {
-			log.Fatalf("failed to parse PGP public key: %v", err)
-		}
-		log.Println("PGP auth enabled")
-	} else {
-		log.Println("WARNING: PGP auth disabled — set PGP_PUBLIC_KEY or PGP_PUBLIC_KEY_FILE")
-	}
-
-	protect := func(h http.Handler) http.Handler {
-		if auth == nil {
-			return h
-		}
-		return auth.RequireAuth(h)
-	}
-
 	mux := http.NewServeMux()
-	if auth != nil {
-		mux.HandleFunc("/auth/challenge", auth.HandleChallenge)
-		mux.HandleFunc("/auth/verify", auth.HandleVerify)
-	}
 	mux.Handle("/", http.FileServer(http.Dir("static")))
-	mux.Handle("/api/containers", protect(handleContainers(collector, persister)))
-	mux.Handle("/api/logs/stream", protect(handleStream(collector)))
-	mux.Handle("/api/logs/history", protect(handleHistory(persister)))
-	mux.Handle("/api/logs/dates", protect(handleDates(persister)))
+	mux.Handle("/api/containers", handleContainers(collector, persister))
+	mux.Handle("/api/logs/stream", handleStream(collector))
+	mux.Handle("/api/logs/history", handleHistory(persister))
+	mux.Handle("/api/logs/dates", handleDates(persister))
 
 	log.Printf("logger listening on :%s", port)
 	if err := http.ListenAndServe(":"+port, mux); err != nil {
