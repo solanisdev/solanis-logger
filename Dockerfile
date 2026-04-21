@@ -11,5 +11,5 @@ WORKDIR /app
 COPY --from=build /app/logger .
 COPY static/ ./static/
 VOLUME ["/app/logs"]
-EXPOSE 8080
+EXPOSE 1123
 CMD ["./logger"]
