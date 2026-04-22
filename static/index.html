@@ -65,7 +65,7 @@
 
     /* ── Container sidebar ── */
     #sidebar {
-      width: 200px;
+      width: 260px;
       flex-shrink: 0;
       display: flex;
       flex-direction: column;
@@ -468,7 +468,7 @@
     <!-- Sidebar: container list -->
     <div id="sidebar">
       <div id="sidebar-title">Containers</div>
-      <input id="container-search" type="text" placeholder="filter..." />
+      <input id="container-search" type="text" placeholder="buscar container..." />
       <div id="container-list">
         <span style="color:var(--secondary-color);font-size:0.75rem;padding:6px;">Carregando...</span>
       </div>
@@ -790,8 +790,8 @@
         if (dates.includes(today)) dateSelect.value = today;
       } catch {}
 
-      // Start live automatically
-      startLive(name);
+      // Search today's logs by default; user can still start live manually
+      if (dateSelect.value) searchHistory();
     }
 
     // ── Render container list ────────────────────────────────────────────────
