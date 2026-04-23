@@ -51,10 +51,20 @@
       white-space: nowrap;
     }
     #brand-logo {
-      margin-left: auto;
       height: 24px;
       flex-shrink: 0;
     }
+    #nav-storage {
+      margin-left: auto;
+      font-size: 0.8rem;
+      color: var(--secondary-color);
+      text-decoration: none;
+      border: 1px solid var(--secondary-color);
+      padding: 2px 8px;
+      flex-shrink: 0;
+      font-family: var(--mono-font-stack);
+    }
+    #nav-storage:hover { border-color: var(--primary-color); color: var(--primary-color); }
 
     /* ── Main layout ── */
     #main {
@@ -459,6 +469,7 @@
     <span id="status-dot"></span>
     <h1>LOGGER</h1>
     <span id="header-info">nenhum container selecionado</span>
+    <a href="/storage.html" id="nav-storage">[ Storage ]</a>
     <img id="brand-logo" src="/img/solanis-logo.svg" alt="Solanis" />
   </div>
 
@@ -976,6 +987,14 @@
     });
 
     // ── Theme toggle ────────────────────────────────────────────────────────
+    const getThemeCookie = () => {
+      const m = document.cookie.match(/(?:^|;\s*)logger-theme=([^;]+)/);
+      return m ? m[1] : null;
+    };
+    const setThemeCookie = (theme) => {
+      document.cookie = `logger-theme=${theme};path=/;max-age=${365*24*3600};SameSite=Lax`;
+    };
+
     const btnTheme = document.getElementById('btn-theme');
     const brandLogo = document.getElementById('brand-logo');
     const applyTheme = (theme) => {
@@ -984,13 +1003,13 @@
       brandLogo.src = theme === 'dark'
         ? '/img/solanis-logo.svg'
         : '/img/solanis-for-light-logo.svg';
-      localStorage.setItem('logger-theme', theme);
+      setThemeCookie(theme);
     };
     btnTheme.addEventListener('click', () => {
       const current = document.documentElement.getAttribute('data-theme') || 'dark';
       applyTheme(current === 'dark' ? 'light' : 'dark');
     });
-    applyTheme(localStorage.getItem('logger-theme') || 'dark');
+    applyTheme(getThemeCookie() || 'dark');
 
     loadContainers();
     setInterval(loadContainers, 10_000);

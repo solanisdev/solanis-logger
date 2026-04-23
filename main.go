@@ -40,7 +40,7 @@ func main() {
 
 	staticHandler := http.FileServer(http.Dir("static"))
 	mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/" || r.URL.Path == "/index.html" {
+		if r.URL.Path == "/" || r.URL.Path == "/index.html" || r.URL.Path == "/storage.html" {
 			if !auth.IsAuthenticated(r) {
 				http.Redirect(w, r, "/login", http.StatusFound)
 				return
@@ -53,6 +53,8 @@ func main() {
 	mux.Handle("/api/logs/stream", auth.RequireAuth(handleStream(collector)))
 	mux.Handle("/api/logs/history", auth.RequireAuth(handleHistory(persister)))
 	mux.Handle("/api/logs/dates", auth.RequireAuth(handleDates(persister)))
+	mux.Handle("/api/storage/files", auth.RequireAuth(handleStorageFiles(logsDir)))
+	mux.Handle("/api/storage/zip", auth.RequireAuth(handleStorageZip(logsDir)))
 
 	log.Printf("logger listening on :%s", port)
 	if err := http.ListenAndServe(":"+port, mux); err != nil {

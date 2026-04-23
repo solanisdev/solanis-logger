@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Storage — Logger</title>
+  <link rel="stylesheet" href="https://unpkg.com/terminal.css@0.7.2/dist/terminal.min.css" />
+  <style>
+    /* ── Themes ── */
+    :root, [data-theme="dark"] {
+      --background-color: #0d0f12;
+      --font-color: #c9d1d9;
+      --primary-color: #39d353;
+      --secondary-color: #556073;
+      --tertiary-color: #58a6ff;
+      --error-color: #f85149;
+      --link-color: #58a6ff;
+    }
+    [data-theme="light"] {
+      --background-color: #f4f4f0;
+      --font-color: #1a1a1a;
+      --primary-color: #1a7f37;
+      --secondary-color: #6e7781;
+      --tertiary-color: #0550ae;
+      --error-color: #cf222e;
+      --link-color: #0550ae;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      font-family: var(--mono-font-stack);
+    }
+
+    /* ── Header ── */
+    #header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--secondary-color);
+      flex-shrink: 0;
+    }
+    #header h1 {
+      font-size: 1rem;
+      font-weight: bold;
+      letter-spacing: 2px;
+      color: var(--primary-color);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    #header-info {
+      font-size: 0.75rem;
+      color: var(--secondary-color);
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #nav-dashboard {
+      margin-left: auto;
+      font-size: 0.8rem;
+      color: var(--secondary-color);
+      text-decoration: none;
+      border: 1px solid var(--secondary-color);
+      padding: 2px 8px;
+      flex-shrink: 0;
+      font-family: var(--mono-font-stack);
+    }
+    #nav-dashboard:hover { border-color: var(--primary-color); color: var(--primary-color); }
+    #brand-logo {
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    /* ── Main ── */
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+      gap: 12px;
+    }
+
+    /* ── Toolbar ── */
+    #storage-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    #storage-toolbar button {
+      background: transparent;
+      border: 1px solid var(--secondary-color);
+      color: var(--font-color);
+      font-family: var(--mono-font-stack);
+      font-size: 0.8rem;
+      padding: 3px 10px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    #storage-toolbar button:hover:not([disabled]) {
+      border-color: var(--primary-color);
+      color: var(--primary-color);
+    }
+    #btn-generate-zip {
+      border-color: var(--secondary-color);
+    }
+    #btn-generate-zip:not([disabled]) {
+      border-color: var(--primary-color);
+      color: var(--primary-color);
+    }
+    #btn-generate-zip[disabled] {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    #selection-info {
+      font-size: 0.75rem;
+      color: var(--secondary-color);
+      margin-left: 4px;
+    }
+
+    /* ── File table ── */
+    #file-list-wrap {
+      overflow-x: auto;
+    }
+    #file-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    #file-table th {
+      text-align: left;
+      padding: 6px 10px;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--secondary-color);
+      border-bottom: 1px solid var(--secondary-color);
+    }
+    #file-table td {
+      padding: 5px 10px;
+      border-bottom: 1px solid rgba(128,128,128,0.15);
+    }
+    #file-table tr.selected-row td {
+      background: rgba(57, 211, 83, 0.07);
+    }
+    #file-table tr:hover td {
+      background: rgba(128, 128, 128, 0.07);
+    }
+    .col-check { width: 32px; }
+    .col-size  { width: 100px; text-align: right; white-space: nowrap; }
+    .col-path  { word-break: break-all; }
+    input[type="checkbox"] { cursor: pointer; accent-color: var(--primary-color); }
+
+    /* ── Footer ── */
+    #footer {
+      padding: 4px 10px;
+      border-top: 1px solid var(--secondary-color);
+      font-size: 0.7rem;
+      color: var(--secondary-color);
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="header">
+    <h1>LOGGER</h1>
+    <span id="header-info">storage configuration</span>
+    <a href="/" id="nav-dashboard">[ Dashboard ]</a>
+    <img id="brand-logo" src="/img/solanis-logo.svg" alt="Solanis" />
+  </div>
+
+  <div id="main">
+    <div id="storage-toolbar">
+      <button id="btn-select-all">[ Select All ]</button>
+      <button id="btn-deselect-all">[ Deselect All ]</button>
+      <button id="btn-generate-zip" disabled>[ Generate ZIP ]</button>
+      <span id="selection-info">0 files selected</span>
+    </div>
+
+    <div id="file-list-wrap">
+      <table id="file-table">
+        <thead>
+          <tr>
+            <th class="col-check"></th>
+            <th class="col-path">Path</th>
+            <th class="col-size">Size (MB)</th>
+          </tr>
+        </thead>
+        <tbody id="file-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="footer">
+    <span id="footer-status">Loading...</span>
+  </div>
+
+  <script>
+    const tbody        = document.getElementById('file-tbody');
+    const btnSelectAll = document.getElementById('btn-select-all');
+    const btnDeselect  = document.getElementById('btn-deselect-all');
+    const btnZip       = document.getElementById('btn-generate-zip');
+    const selInfo      = document.getElementById('selection-info');
+    const footerStatus = document.getElementById('footer-status');
+
+    let allFiles = [];
+    const selected = new Set();
+
+    function updateSelectionInfo() {
+      selInfo.textContent = `${selected.size} file${selected.size !== 1 ? 's' : ''} selected`;
+      btnZip.disabled = selected.size === 0;
+    }
+
+    function renderFiles(files) {
+      tbody.innerHTML = '';
+      if (!files.length) {
+        tbody.innerHTML = '<tr><td colspan="3" style="color:var(--secondary-color);padding:12px">Nenhum arquivo de log encontrado.</td></tr>';
+        return;
+      }
+      for (const f of files) {
+        const tr = document.createElement('tr');
+        tr.dataset.path = f.path;
+
+        const tdChk = document.createElement('td');
+        tdChk.className = 'col-check';
+        const chk = document.createElement('input');
+        chk.type = 'checkbox';
+        chk.addEventListener('change', () => {
+          if (chk.checked) selected.add(f.path);
+          else selected.delete(f.path);
+          tr.classList.toggle('selected-row', chk.checked);
+          updateSelectionInfo();
+        });
+        tdChk.appendChild(chk);
+
+        const tdPath = document.createElement('td');
+        tdPath.className = 'col-path';
+        tdPath.textContent = f.path;
+
+        const tdSize = document.createElement('td');
+        tdSize.className = 'col-size';
+        tdSize.textContent = f.size_mb.toFixed(2);
+
+        tr.appendChild(tdChk);
+        tr.appendChild(tdPath);
+        tr.appendChild(tdSize);
+        tbody.appendChild(tr);
+      }
+    }
+
+    async function loadFiles() {
+      footerStatus.textContent = 'Carregando...';
+      try {
+        const res = await fetch('/api/storage/files');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        allFiles = await res.json();
+        selected.clear();
+        updateSelectionInfo();
+        renderFiles(allFiles);
+        const total = allFiles.reduce((s, f) => s + f.size_mb, 0);
+        footerStatus.textContent = `${allFiles.length} arquivo(s) — ${total.toFixed(2)} MB total`;
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="3" style="color:var(--error-color);padding:12px">Erro: ${err.message}</td></tr>`;
+        footerStatus.textContent = 'Erro ao carregar arquivos';
+      }
+    }
+
+    btnSelectAll.addEventListener('click', () => {
+      tbody.querySelectorAll('input[type="checkbox"]').forEach(chk => {
+        chk.checked = true;
+        const path = chk.closest('tr').dataset.path;
+        selected.add(path);
+        chk.closest('tr').classList.add('selected-row');
+      });
+      updateSelectionInfo();
+    });
+
+    btnDeselect.addEventListener('click', () => {
+      tbody.querySelectorAll('input[type="checkbox"]').forEach(chk => {
+        chk.checked = false;
+        chk.closest('tr').classList.remove('selected-row');
+      });
+      selected.clear();
+      updateSelectionInfo();
+    });
+
+    btnZip.addEventListener('click', async () => {
+      if (selected.size === 0) return;
+      const originalText = btnZip.textContent;
+      btnZip.disabled = true;
+      btnZip.textContent = '[ Gerando... ]';
+      footerStatus.textContent = 'Gerando ZIP...';
+      try {
+        const res = await fetch('/api/storage/zip', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ paths: [...selected] }),
+        });
+        if (!res.ok) {
+          const msg = await res.text();
+          throw new Error(msg || `HTTP ${res.status}`);
+        }
+        const blob = await res.blob();
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = 'logs-archive.zip';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        footerStatus.textContent = 'ZIP baixado. Atualizando lista...';
+        await loadFiles();
+      } catch (err) {
+        footerStatus.textContent = `Erro: ${err.message}`;
+        alert(`Falha ao gerar ZIP: ${err.message}`);
+        btnZip.disabled = selected.size === 0;
+        btnZip.textContent = originalText;
+      }
+    });
+
+    // Match theme from dashboard
+    const getThemeCookie = () => {
+      const m = document.cookie.match(/(?:^|;\s*)logger-theme=([^;]+)/);
+      return m ? m[1] : null;
+    };
+    const theme = getThemeCookie() || 'dark';
+    document.documentElement.setAttribute('data-theme', theme);
+    const logo = document.getElementById('brand-logo');
+    logo.src = theme === 'dark' ? '/img/solanis-logo.svg' : '/img/solanis-for-light-logo.svg';
+
+    loadFiles();
+  </script>
+</body>
+</html>
