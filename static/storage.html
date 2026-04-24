@@ -155,7 +155,25 @@
     .col-check { width: 32px; }
     .col-size  { width: 100px; text-align: right; white-space: nowrap; }
     .col-path  { word-break: break-all; }
+    .col-actions { width: 200px; white-space: nowrap; text-align: right; }
     input[type="checkbox"] { cursor: pointer; accent-color: var(--primary-color); }
+
+    .row-action {
+      background: transparent;
+      border: 1px solid var(--secondary-color);
+      color: var(--font-color);
+      font-family: var(--mono-font-stack);
+      font-size: 0.7rem;
+      padding: 2px 6px;
+      margin-left: 4px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .row-action:hover { border-color: var(--primary-color); color: var(--primary-color); }
+    .row-action.danger:hover { border-color: var(--error-color); color: var(--error-color); }
 
     /* ── Footer ── */
     #footer {
@@ -191,6 +209,7 @@
             <th class="col-check"></th>
             <th class="col-path">Path</th>
             <th class="col-size">Size (MB)</th>
+            <th class="col-actions">Actions</th>
           </tr>
         </thead>
         <tbody id="file-tbody"></tbody>
@@ -221,24 +240,28 @@
     function renderFiles(files) {
       tbody.innerHTML = '';
       if (!files.length) {
-        tbody.innerHTML = '<tr><td colspan="3" style="color:var(--secondary-color);padding:12px">Nenhum arquivo de log encontrado.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="color:var(--secondary-color);padding:12px">Nenhum arquivo de log encontrado.</td></tr>';
         return;
       }
       for (const f of files) {
+        const isZip = f.path.endsWith('.zip');
         const tr = document.createElement('tr');
         tr.dataset.path = f.path;
+        if (isZip) tr.classList.add('zip-row');
 
         const tdChk = document.createElement('td');
         tdChk.className = 'col-check';
-        const chk = document.createElement('input');
-        chk.type = 'checkbox';
-        chk.addEventListener('change', () => {
-          if (chk.checked) selected.add(f.path);
-          else selected.delete(f.path);
-          tr.classList.toggle('selected-row', chk.checked);
-          updateSelectionInfo();
-        });
-        tdChk.appendChild(chk);
+        if (!isZip) {
+          const chk = document.createElement('input');
+          chk.type = 'checkbox';
+          chk.addEventListener('change', () => {
+            if (chk.checked) selected.add(f.path);
+            else selected.delete(f.path);
+            tr.classList.toggle('selected-row', chk.checked);
+            updateSelectionInfo();
+          });
+          tdChk.appendChild(chk);
+        }
 
         const tdPath = document.createElement('td');
         tdPath.className = 'col-path';
@@ -248,10 +271,50 @@
         tdSize.className = 'col-size';
         tdSize.textContent = f.size_mb.toFixed(2);
 
+        const tdActions = document.createElement('td');
+        tdActions.className = 'col-actions';
+
+        const viewLink = document.createElement('a');
+        viewLink.className = 'row-action';
+        viewLink.href = '/view.html?path=' + encodeURIComponent(f.path);
+        viewLink.textContent = 'View';
+        tdActions.appendChild(viewLink);
+
+        if (isZip) {
+          const dl = document.createElement('a');
+          dl.className = 'row-action';
+          dl.href = '/api/storage/download?path=' + encodeURIComponent(f.path);
+          dl.setAttribute('download', '');
+          dl.textContent = 'Download';
+          tdActions.appendChild(dl);
+        }
+
+        const del = document.createElement('button');
+        del.className = 'row-action danger';
+        del.textContent = 'Delete';
+        del.addEventListener('click', () => deleteFile(f.path));
+        tdActions.appendChild(del);
+
         tr.appendChild(tdChk);
         tr.appendChild(tdPath);
         tr.appendChild(tdSize);
+        tr.appendChild(tdActions);
         tbody.appendChild(tr);
+      }
+    }
+
+    async function deleteFile(path) {
+      if (!confirm(`Excluir "${path}"?\n\nEsta ação não pode ser desfeita.`)) return;
+      try {
+        const res = await fetch('/api/storage/file?path=' + encodeURIComponent(path), { method: 'DELETE' });
+        if (!res.ok && res.status !== 204) {
+          const msg = await res.text();
+          throw new Error(msg || `HTTP ${res.status}`);
+        }
+        footerStatus.textContent = `Excluído: ${path}`;
+        await loadFiles();
+      } catch (err) {
+        alert(`Falha ao excluir: ${err.message}`);
       }
     }
 
@@ -267,7 +330,7 @@
         const total = allFiles.reduce((s, f) => s + f.size_mb, 0);
         footerStatus.textContent = `${allFiles.length} arquivo(s) — ${total.toFixed(2)} MB total`;
       } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="3" style="color:var(--error-color);padding:12px">Erro: ${err.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" style="color:var(--error-color);padding:12px">Erro: ${err.message}</td></tr>`;
         footerStatus.textContent = 'Erro ao carregar arquivos';
       }
     }

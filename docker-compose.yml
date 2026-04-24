@@ -12,5 +12,7 @@ services:
       - LOGS_DIR=/app/logs
       - PORT=1123
       - PM2_LOGS_DIR=/pm2-logs
+      - MAX_LOG_LINES=100_000
+      - TZ=America/Sao_Paulo
     user: root
     restart: unless-stopped

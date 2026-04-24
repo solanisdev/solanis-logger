@@ -271,6 +271,7 @@
     .ts   { color: var(--tertiary-color); flex-shrink: 0; opacity: 0.8; }
     .cn   { color: var(--secondary-color); flex-shrink: 0; font-weight: bold; }
     .msg  { flex: 1; }
+    .hl   { font-weight: bold; letter-spacing: 0.3px; }
 
     /* ── Footer ── */
     #footer {
@@ -568,10 +569,12 @@
     ];
 
     const DEFAULT_RULES = [
-      { pattern: '\\b(ERROR|FATAL|CRITICAL|EXCEPTION)\\b', color: 'var(--error-color)',    flags: 'gi' },
-      { pattern: '\\b(WARN(?:ING)?)\\b',                   color: '#ffb86c',               flags: 'gi' },
-      { pattern: '\\b(INFO)\\b',                           color: 'var(--primary-color)',   flags: 'gi' },
-      { pattern: '\\b(DEBUG|TRACE)\\b',                    color: 'var(--tertiary-color)',  flags: 'gi' },
+      { pattern: '\\b(ERROR|FATAL|CRITICAL|EXCEPTION)\\b', color: '#ff3b30', flags: 'gi' },
+      { pattern: '\\b(WARN(?:ING)?)\\b',                   color: '#ffaa00', flags: 'gi' },
+      { pattern: '\\b(INFO)\\b',                           color: '#50fa7b', flags: 'gi' },
+      { pattern: '\\b(DEBUG|TRACE)\\b',                    color: '#8be9fd', flags: 'gi' },
+      { pattern: '\\b(SUCCESS|OK|PASS(?:ED)?)\\b',         color: '#39d353', flags: 'gi' },
+      { pattern: '\\b(FAIL(?:ED|URE)?)\\b',                color: '#ff5577', flags: 'gi' },
     ];
 
     let customRules = [];
@@ -617,7 +620,7 @@
         try {
           text = text.replace(
             new RegExp(rule.pattern, rule.flags || 'gi'),
-            `<span style="color:${rule.color}">$&</span>`
+            `<span class="hl" style="color:${rule.color};text-shadow:0 0 6px ${rule.color}">$&</span>`
           );
         } catch {}
       }

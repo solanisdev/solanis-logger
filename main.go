@@ -1,12 +1,15 @@
 package main
 
 import (
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -40,7 +43,7 @@ func main() {
 
 	staticHandler := http.FileServer(http.Dir("static"))
 	mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/" || r.URL.Path == "/index.html" || r.URL.Path == "/storage.html" {
+		if r.URL.Path == "/" || r.URL.Path == "/index.html" || r.URL.Path == "/storage.html" || r.URL.Path == "/view.html" {
 			if !auth.IsAuthenticated(r) {
 				http.Redirect(w, r, "/login", http.StatusFound)
 				return
@@ -49,12 +52,16 @@ func main() {
 		staticHandler.ServeHTTP(w, r)
 	}))
 
-	mux.Handle("/api/containers", auth.RequireAuth(handleContainers(collector, persister)))
+	mux.Handle("/api/containers", auth.RequireAuth(gzipMiddleware(handleContainers(collector, persister))))
 	mux.Handle("/api/logs/stream", auth.RequireAuth(handleStream(collector)))
-	mux.Handle("/api/logs/history", auth.RequireAuth(handleHistory(persister)))
-	mux.Handle("/api/logs/dates", auth.RequireAuth(handleDates(persister)))
-	mux.Handle("/api/storage/files", auth.RequireAuth(handleStorageFiles(logsDir)))
-	mux.Handle("/api/storage/zip", auth.RequireAuth(handleStorageZip(logsDir)))
+	mux.Handle("/api/logs/history", auth.RequireAuth(gzipMiddleware(handleHistory(persister))))
+	mux.Handle("/api/logs/dates", auth.RequireAuth(gzipMiddleware(handleDates(persister))))
+	mux.Handle("/api/storage/files", auth.RequireAuth(gzipMiddleware(handleStorageFiles(logsDir))))
+	mux.Handle("/api/storage/zip", auth.RequireAuth(handleStorageZip(logsDir, persister)))
+	mux.Handle("/api/storage/download", auth.RequireAuth(handleStorageDownload(logsDir)))
+	mux.Handle("/api/storage/view", auth.RequireAuth(gzipMiddleware(handleStorageView(logsDir))))
+	mux.Handle("DELETE /api/storage/file", auth.RequireAuth(handleStorageDelete(logsDir, persister)))
+	mux.Handle("/healthz", handleHealthz(collector, persister))
 
 	log.Printf("logger listening on :%s", port)
 	if err := http.ListenAndServe(":"+port, mux); err != nil {
@@ -133,14 +140,21 @@ func handleHistory(persister *Persister) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		name := r.URL.Query().Get("name")
 		date := r.URL.Query().Get("date")
-		query := r.URL.Query().Get("q")
 
 		if name == "" || date == "" {
 			http.Error(w, "name and date required", http.StatusBadRequest)
 			return
 		}
 
-		lines, err := persister.Search(name, date, query)
+		opts := SearchOpts{Query: r.URL.Query().Get("q")}
+		if v := r.URL.Query().Get("limit"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil && n > 0 {
+				opts.Limit = n
+			}
+		}
+		opts.Tail = r.URL.Query().Get("tail") == "1" || r.URL.Query().Get("tail") == "true"
+
+		lines, err := persister.Search(name, date, opts)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -168,4 +182,51 @@ func handleDates(persister *Persister) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(dates)
 	}
+}
+
+func handleHealthz(collector *Collector, persister *Persister) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		type resp struct {
+			Status        string  `json:"status"`
+			UptimeSeconds float64 `json:"uptime_seconds"`
+			Dropped       uint64  `json:"dropped_lines"`
+			Containers    int     `json:"live_containers"`
+			RetentionDays int     `json:"retention_days"`
+			MaxLogLines   int     `json:"max_log_lines"`
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp{
+			Status:        "ok",
+			UptimeSeconds: persister.Uptime().Seconds(),
+			Dropped:       persister.DroppedCount(),
+			Containers:    len(collector.GetContainers()),
+			RetentionDays: persister.RetentionDays(),
+			MaxLogLines:   persister.maxLines,
+		})
+	}
+}
+
+// gzipMiddleware compresses responses when the client accepts gzip.
+// Not safe to use on streaming (SSE) or binary-download endpoints.
+func gzipMiddleware(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			h.ServeHTTP(w, r)
+			return
+		}
+		w.Header().Set("Content-Encoding", "gzip")
+		w.Header().Del("Content-Length")
+		gz := gzip.NewWriter(w)
+		defer gz.Close()
+		h.ServeHTTP(&gzipResponseWriter{ResponseWriter: w, w: gz}, r)
+	})
+}
+
+type gzipResponseWriter struct {
+	http.ResponseWriter
+	w io.Writer
+}
+
+func (g *gzipResponseWriter) Write(b []byte) (int, error) {
+	return g.w.Write(b)
 }

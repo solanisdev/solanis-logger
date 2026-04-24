@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>View — Logger</title>
+  <link rel="stylesheet" href="https://unpkg.com/terminal.css@0.7.2/dist/terminal.min.css" />
+  <style>
+    :root, [data-theme="dark"] {
+      --background-color: #0d0f12;
+      --font-color: #c9d1d9;
+      --primary-color: #39d353;
+      --secondary-color: #556073;
+      --tertiary-color: #58a6ff;
+      --error-color: #f85149;
+      --link-color: #58a6ff;
+    }
+    [data-theme="light"] {
+      --background-color: #f4f4f0;
+      --font-color: #1a1a1a;
+      --primary-color: #1a7f37;
+      --secondary-color: #6e7781;
+      --tertiary-color: #0550ae;
+      --error-color: #cf222e;
+      --link-color: #0550ae;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      font-family: var(--mono-font-stack);
+    }
+
+    #header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--secondary-color);
+      flex-shrink: 0;
+    }
+    #header h1 {
+      font-size: 1rem;
+      font-weight: bold;
+      letter-spacing: 2px;
+      color: var(--primary-color);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    #header-info {
+      font-size: 0.75rem;
+      color: var(--secondary-color);
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #nav-storage {
+      margin-left: auto;
+      font-size: 0.8rem;
+      color: var(--secondary-color);
+      text-decoration: none;
+      border: 1px solid var(--secondary-color);
+      padding: 2px 8px;
+      flex-shrink: 0;
+      font-family: var(--mono-font-stack);
+      white-space: nowrap;
+    }
+    #nav-storage:hover { border-color: var(--primary-color); color: var(--primary-color); }
+    #brand-logo {
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    #toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--secondary-color);
+      flex-wrap: wrap;
+    }
+    #toolbar input[type="text"], #toolbar input[type="number"] {
+      background: transparent;
+      border: 1px solid var(--secondary-color);
+      color: var(--font-color);
+      padding: 3px 8px;
+      font-family: var(--mono-font-stack);
+      font-size: 0.8rem;
+    }
+    #toolbar input[type="text"] { flex: 1; min-width: 200px; }
+    #toolbar input[type="number"] { width: 100px; }
+    #toolbar label {
+      font-size: 0.75rem;
+      color: var(--secondary-color);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    #toolbar button {
+      background: transparent;
+      border: 1px solid var(--secondary-color);
+      color: var(--font-color);
+      font-family: var(--mono-font-stack);
+      font-size: 0.75rem;
+      padding: 3px 10px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    #toolbar button:hover { border-color: var(--primary-color); color: var(--primary-color); }
+    input[type="checkbox"] { cursor: pointer; accent-color: var(--primary-color); }
+
+    #log-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 10px;
+      font-size: 0.8rem;
+      line-height: 1.4;
+    }
+    .log-line {
+      display: block;
+      white-space: pre-wrap;
+      word-break: break-word;
+      padding: 1px 0;
+    }
+    .ts { color: var(--secondary-color); margin-right: 8px; }
+    .cn { color: var(--tertiary-color); margin-right: 8px; }
+    .msg { color: var(--font-color); }
+    .hl { font-weight: bold; letter-spacing: 0.3px; }
+
+    #footer {
+      padding: 4px 10px;
+      border-top: 1px solid var(--secondary-color);
+      font-size: 0.7rem;
+      color: var(--secondary-color);
+      flex-shrink: 0;
+      display: flex;
+      gap: 16px;
+    }
+    .hint { font-style: italic; color: var(--secondary-color); }
+  </style>
+</head>
+<body>
+
+  <div id="header">
+    <h1>LOGGER</h1>
+    <span id="header-info">...</span>
+    <a href="/storage.html" id="nav-storage">[ Storage ]</a>
+    <img id="brand-logo" src="/img/solanis-logo.svg" alt="Solanis" />
+  </div>
+
+  <div id="toolbar">
+    <input type="text" id="search-input" placeholder="Filtrar (substring, case-insensitive)..." />
+    <label><span>Limit</span><input type="number" id="limit-input" value="5000" min="0" step="100" /></label>
+    <label><input type="checkbox" id="tail-chk" checked /><span>Tail (últimas N)</span></label>
+    <button id="btn-load">[ Carregar ]</button>
+  </div>
+
+  <div id="log-area">
+    <span class="hint">Carregando...</span>
+  </div>
+
+  <div id="footer">
+    <span id="footer-path"></span>
+    <span id="footer-count"></span>
+    <span id="footer-status"></span>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const path = params.get('path') || '';
+    const headerInfo  = document.getElementById('header-info');
+    const logArea     = document.getElementById('log-area');
+    const searchInput = document.getElementById('search-input');
+    const limitInput  = document.getElementById('limit-input');
+    const tailChk     = document.getElementById('tail-chk');
+    const btnLoad     = document.getElementById('btn-load');
+    const footerPath  = document.getElementById('footer-path');
+    const footerCount = document.getElementById('footer-count');
+    const footerStatus = document.getElementById('footer-status');
+
+    headerInfo.textContent = path || '(sem arquivo)';
+    footerPath.textContent = path;
+
+    // ── Highlight rules (shared config key with the dashboard) ──────────────
+    const DEFAULT_RULES = [
+      { pattern: '\\b(ERROR|FATAL|CRITICAL|EXCEPTION)\\b', color: '#ff3b30', flags: 'gi' },
+      { pattern: '\\b(WARN(?:ING)?)\\b',                   color: '#ffaa00', flags: 'gi' },
+      { pattern: '\\b(INFO)\\b',                           color: '#50fa7b', flags: 'gi' },
+      { pattern: '\\b(DEBUG|TRACE)\\b',                    color: '#8be9fd', flags: 'gi' },
+      { pattern: '\\b(SUCCESS|OK|PASS(?:ED)?)\\b',         color: '#39d353', flags: 'gi' },
+      { pattern: '\\b(FAIL(?:ED|URE)?)\\b',                color: '#ff5577', flags: 'gi' },
+    ];
+    let customRules = [];
+    try { customRules = JSON.parse(localStorage.getItem('logger_highlight_rules') || '[]'); } catch {}
+
+    function escapeHtml(text) {
+      return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function highlight(text) {
+      const rules = [...DEFAULT_RULES, ...customRules];
+      for (const rule of rules) {
+        if (!rule.pattern) continue;
+        try {
+          text = text.replace(
+            new RegExp(rule.pattern, rule.flags || 'gi'),
+            `<span class="hl" style="color:${rule.color};text-shadow:0 0 6px ${rule.color}">$&</span>`
+          );
+        } catch {}
+      }
+      return text;
+    }
+
+    function formatTime(isoString) {
+      try {
+        const d = new Date(isoString);
+        if (isNaN(d.getTime())) return isoString;
+        return d.toLocaleTimeString('pt-BR', { hour12: false });
+      } catch {
+        return isoString;
+      }
+    }
+
+    function buildLineHTML(line) {
+      const m = line.match(/^(\S+)\s+\[([^\]]+)\]\s+([\s\S]*)$/);
+      if (m) {
+        return `<span class="log-line">` +
+          `<span class="ts">${escapeHtml(formatTime(m[1]))}</span>` +
+          `<span class="cn">[${escapeHtml(m[2])}]</span>` +
+          `<span class="msg">${highlight(escapeHtml(m[3]))}</span>` +
+          `</span>`;
+      }
+      return `<span class="log-line"><span class="msg">${highlight(escapeHtml(line))}</span></span>`;
+    }
+
+    async function load() {
+      if (!path) {
+        logArea.innerHTML = '<span class="hint" style="color:var(--error-color)">Parâmetro ?path ausente.</span>';
+        return;
+      }
+      const qs = new URLSearchParams({ path });
+      const q = searchInput.value.trim();
+      if (q) qs.set('q', q);
+      const limit = parseInt(limitInput.value, 10);
+      if (!isNaN(limit) && limit > 0) qs.set('limit', String(limit));
+      if (tailChk.checked) qs.set('tail', '1');
+
+      logArea.innerHTML = '<span class="hint">Carregando...</span>';
+      footerStatus.textContent = '';
+      try {
+        const res = await fetch('/api/storage/view?' + qs.toString());
+        if (!res.ok) {
+          const msg = await res.text();
+          throw new Error(msg || `HTTP ${res.status}`);
+        }
+        const lines = await res.json();
+        if (!lines.length) {
+          logArea.innerHTML = '<span class="hint">Nenhuma linha encontrada.</span>';
+          footerCount.textContent = '0 linhas';
+          return;
+        }
+        logArea.innerHTML = lines.map(buildLineHTML).join('');
+        footerCount.textContent = `${lines.length} linha(s)`;
+        logArea.scrollTop = logArea.scrollHeight;
+      } catch (err) {
+        logArea.innerHTML = `<span class="hint" style="color:var(--error-color)">Erro: ${escapeHtml(err.message)}</span>`;
+        footerStatus.textContent = 'Falha ao carregar';
+      }
+    }
+
+    btnLoad.addEventListener('click', load);
+    searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') load(); });
+
+    // Match theme from dashboard
+    const getThemeCookie = () => {
+      const m = document.cookie.match(/(?:^|;\s*)logger-theme=([^;]+)/);
+      return m ? m[1] : null;
+    };
+    const theme = getThemeCookie() || 'dark';
+    document.documentElement.setAttribute('data-theme', theme);
+    const logo = document.getElementById('brand-logo');
+    logo.src = theme === 'dark' ? '/img/solanis-logo.svg' : '/img/solanis-for-light-logo.svg';
+
+    load();
+  </script>
+</body>
+</html>
